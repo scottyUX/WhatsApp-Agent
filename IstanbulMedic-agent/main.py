@@ -8,7 +8,7 @@ async def main():
     print("🤖 IstanbulMedic Agent is running...\n")
     
     # Initial input to the agent (could come from WhatsApp later)
-    user_input = "Hi, I'm interested in cosmetic surgery in Istanbul."
+    user_input = "Can you tell me about the best cosmetic surgeons in Istanbul?"
     
     result = await Runner.run(supervisor_agent, user_input)
 

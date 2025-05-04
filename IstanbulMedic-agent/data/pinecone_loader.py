@@ -1,1 +1,1 @@
- 
+filepath = "../data/longevita_scraped.txt" 

@@ -10,18 +10,13 @@ class UserInfo(TypedDict):
     email: str
 
 @function_tool
-def collect_user_info(user_info: UserInfo) -> UserInfo:
-    """
-    Collect basic user info. Prompt for any missing fields.
-    """
-    missing = []
-    if not user_info["first_name"]:
-        missing.append("first name")
-    if not user_info["last_name"]:
-        missing.append("last name")
-    if not user_info["email"]:
-        missing.append("email")
-
-    if missing:
-        return f"To get started, please share your {', '.join(missing)}."
-    return f"Thanks {user_info['first_name']} {user_info['last_name']}. We’ve recorded your email ({user_info['email']})."
+def collect_user_info() -> UserInfo:
+    """Collects user's first name, last name, and email address from console input."""
+    first_name = input("First Name: ")
+    last_name = input("Last Name: ")
+    email = input("Email: ")
+    return {
+        "first_name": first_name,
+        "last_name": last_name,
+        "email": email,
+    }
