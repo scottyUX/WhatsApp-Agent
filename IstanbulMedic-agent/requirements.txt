@@ -1,1 +1,8 @@
-twilio 
+openai
+openai-agents
+langchain
+langgraph
+pinecone-client
+python-dotenv
+fastapi
+twilio
