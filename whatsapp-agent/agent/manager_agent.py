@@ -26,7 +26,7 @@ Author: Scott Davis
 from openai import OpenAI
 import os
 
-client = OpenAI(api_key="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")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Cache to remember language per WhatsApp user session
 lang_cache = {}

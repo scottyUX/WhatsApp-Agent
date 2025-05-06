@@ -42,4 +42,31 @@ async def istanbulMedic_agent():
         </Response>
         """
         return Response(content=error_response.strip(), media_type="text/xml")
+    
+@app.post("/api/istanbulMedic-agent")
+async def istanbulMedic_agent(request: Request):
+    try:
+        form = await request.form()
+        user_input = form.get("Body", "")
+        user_id = form.get("From", "")
+
+        print(f"📩 Incoming WhatsApp message from {user_id}: {user_input}")
+
+        result = await run_manager(user_input, user_id)
+
+        xml_response = f"""
+        <Response>
+            <Message>{result}</Message>
+        </Response>
+        """
+        return Response(content=xml_response.strip(), media_type="text/xml")
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        error_response = """
+        <Response>
+            <Message>Üzgünüz, bir hata oluştu. Lütfen tekrar deneyin.</Message>
+        </Response>
+        """
+        return Response(content=error_response.strip(), media_type="text/xml")
 
