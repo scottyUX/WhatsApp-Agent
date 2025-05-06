@@ -1,0 +1,15 @@
+{
+    "builds": [
+      {
+        "src": "api/app.py",
+        "use": "@vercel/python"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/api/istanbulMedic-agent",
+        "dest": "api/app.py"
+      }
+    ]
+  }
+  
