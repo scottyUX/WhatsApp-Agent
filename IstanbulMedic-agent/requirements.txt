@@ -6,3 +6,4 @@ pinecone-client
 python-dotenv
 fastapi
 twilio
+uvicorn
