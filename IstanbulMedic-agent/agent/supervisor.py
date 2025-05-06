@@ -11,7 +11,7 @@ load_dotenv()
 
 
 # Now you can access the OPENAI_API_KEY
-openai_api_key = os.getenv("OPENAI_API_KEY")
+openai_api_key = "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"
 
 # Ensure the key is set
 if not openai_api_key:
