@@ -4,6 +4,26 @@ import argparse
 from dotenv import load_dotenv
 
 
+"""
+─────────────────────────────────────────────────────────────
+📄 IstanbulMedic Translator: English ➜ German
+─────────────────────────────────────────────────────────────
+This script reads a medical text file written in English,
+translates it into formal and fluent German using OpenAI GPT-4o,
+and writes the translated output to a target file.
+
+Usage:
+    python translate_to_german.py --source <input_file.txt> --target <output_file.txt>
+
+Notes:
+- Replaces all mentions of "Longevita" with "IstanbulMedic".
+- Maintains formatting including section separators (----).
+- Suitable for medical policies, procedures, and formal content.
+
+Author: Scott Davis
+─────────────────────────────────────────────────────────────
+"""
+
 
 from openai import OpenAI
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.local.env'))
