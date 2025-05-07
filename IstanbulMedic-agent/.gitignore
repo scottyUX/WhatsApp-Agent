@@ -1,3 +1,30 @@
-.env 
-./venv
-.vercel
+# Virtual environments
+.venv/
+venv/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Environment variables and config
+.env
+
+# System files
+.DS_Store
+
+# IDE configs
+.vscode/
+.idea/
+
+# Log and temp files
+*.log
+*.tmp
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Local test/development folders
+whatsapp-agent/
