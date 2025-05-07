@@ -28,3 +28,7 @@ build/
 
 # Local test/development folders
 whatsapp-agent/
+.venv/
+.env
+tests/image.jpg
+__pycache__/
