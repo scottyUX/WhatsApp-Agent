@@ -1,0 +1,1 @@
+https://istanbul-medic-agent.vercel.app/api/istanbulMedic-agent
