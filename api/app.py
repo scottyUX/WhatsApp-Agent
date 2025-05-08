@@ -70,7 +70,7 @@ async def send_whatsapp_message():
 
 
     
-@app.post("/api/istanbulMedic-agent-2")
+@app.post("/api/webhook")
 async def istanbulMedic_agent(request: Request):
     try:
         form = await request.form()
