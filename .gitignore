@@ -27,7 +27,5 @@ build/
 *.egg-info/
 
 # Local test/development folders
-whatsapp-agent/
+
 .venv/
-IstanbulMedic-agent/.venv/
-IstanbulMedic-agent/.env
