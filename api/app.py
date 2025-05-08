@@ -15,6 +15,7 @@ load_dotenv()
 account_sid = os.getenv("TWILIO_ACCOUNT_SID")
 auth_token = os.getenv("TWILIO_AUTH_TOKEN")
 client = Client(account_sid, auth_token)
+print("client", client)
 
 app = FastAPI()
 
@@ -74,10 +75,11 @@ async def send_whatsapp_message():
 async def istanbulMedic_agent(request: Request):
     try:
         form = await request.form()
+        print("form", form)
         user_input = form.get("Body", "")
-        user_id = "test_user"
+        user_id = form.get("From", "unknown_user")
 
-        print(f"Incoming WhatsApp message from {user_id}: {user_input}")
+        print(f"📩 WhatsApp message from {user_id}: {user_input}")
 
         result = await run_manager(user_input, user_id)
 
@@ -89,13 +91,12 @@ async def istanbulMedic_agent(request: Request):
         return Response(content=xml_response.strip(), media_type="text/xml")
 
     except Exception as e:
-        print(f"❌ Error: {e}")
-        error_response = """
+        print(f"❌ Webhook error: {e}")
+        return Response(content="""
         <Response>
             <Message>Üzgünüz, bir hata oluştu. Lütfen tekrar deneyin.</Message>
         </Response>
-        """
-        return Response(content=error_response.strip(), media_type="text/xml")
+        """.strip(), media_type="text/xml")
 
 
 if __name__ == "__main__":
