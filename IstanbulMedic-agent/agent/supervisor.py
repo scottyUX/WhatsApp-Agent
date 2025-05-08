@@ -2,19 +2,19 @@
 from agents import Agent, Runner, FileSearchTool
 from dotenv import load_dotenv
 import os
+from openai import OpenAI
 
 from tools.collect_user_info import collect_user_info
 
 # Load environment variables from .env file
+
+from dotenv import load_dotenv
+
 load_dotenv()
 
-
-
-# Now you can access the OPENAI_API_KEY
-openai_api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # Ensure the key is set
-if not openai_api_key:
-    raise ValueError("OPENAI_API_KEY is not set in the environment variables.")
+
 
 supervisor_agent = Agent(
     name="IstanbulMedic Supervisor",

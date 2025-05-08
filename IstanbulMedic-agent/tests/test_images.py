@@ -4,7 +4,7 @@ import imghdr
 from openai import OpenAI
 
 def analyze_image_with_gpt4o(prompt: str, image_path: str):
-    client = OpenAI(api_key="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")
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     with open(image_path, "rb") as f:
         image_bytes = f.read()
