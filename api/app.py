@@ -76,6 +76,7 @@ async def istanbulMedic_agent(request: Request):
         form = await request.form()
         user_input = form.get("Body", "")
         user_id = "test_user"
+        print("form", form)
 
         print(f"Incoming WhatsApp message from {user_id}: {user_input}")
 
