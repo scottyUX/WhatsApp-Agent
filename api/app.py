@@ -80,10 +80,19 @@ async def istanbulMedic_agent(request: Request):
         print("form", form)
         user_input = form.get("Body", "")
         user_id = form.get("From", "unknown_user")
+        
+        media_num = int(form.get("NumMedia",0))
+        image_url = None
+        for i in range(media_num):
+            media_type = form.get(f"MediaContentType{i}")
+            if media_type.startswith("image/"):
+                image_url = form.get(f"MediaUrl{i}")
+                break
+
 
         print(f"📩 WhatsApp message from {user_id}: {user_input}")
 
-        result = await run_manager(user_input, user_id)
+        result = await run_manager(user_input, user_id,image_url=image_url)
 
         xml_response = f"""
         <Response>
