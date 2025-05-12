@@ -31,6 +31,7 @@ load_dotenv()
 from openai import OpenAI
 from agent.english_agent import run_agent as run_english_agent
 from agent.german_agent import run_agent as run_german_agent
+from agent.image_agent import run_agent as run_image_agent
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 print("client", client)
@@ -53,13 +54,15 @@ def detect_language(text: str) -> str:
         print(f"❌ Language detection failed: {e}")
         return "en"  # fallback
 
-async def run_manager(user_input: str, user_id: str) -> str:
+async def run_manager(user_input: str, user_id: str, image_url: str = None) -> str:
     print(f"📩 Message from {user_id}: {user_input}")
 
     lang = detect_language(user_input)
     print(f"🌍 Detected language: {lang}")
 
-    if lang == "de":
+    if image_url:
+        return await run_image_agent(user_input, image_url)
+    elif lang == "de":
         return await run_german_agent(user_input)
     else:
         return await run_english_agent(user_input)
