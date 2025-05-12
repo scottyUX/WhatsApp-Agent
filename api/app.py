@@ -89,7 +89,6 @@ async def istanbulMedic_agent(request: Request):
                 image_url = form.get(f"MediaUrl{i}")
                 break
 
-
         print(f"📩 WhatsApp message from {user_id}: {user_input}")
 
         result = await run_manager(user_input, user_id,image_url=image_url)
