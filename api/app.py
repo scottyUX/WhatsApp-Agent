@@ -15,6 +15,7 @@ load_dotenv()
 account_sid = os.getenv("TWILIO_ACCOUNT_SID")
 auth_token = os.getenv("TWILIO_AUTH_TOKEN")
 client = Client(account_sid, auth_token)
+print("client", client)
 
 app = FastAPI()
 
@@ -32,10 +33,12 @@ async def istanbulMedic_agent():
         # 🔧 Hardcoded test input
         user_input = "Good morning, I am interested in hair transplantation."
         user_id = "test_user"
+        #If image url is none it use other agents. If not none it uses image agent.
+        image_url = "https://pedmer.com.tr/wp-content/uploads/2022/09/sac_ekimi.jpg"
 
         print(f"📩 Testing message from {user_id}: {user_input}")
 
-        result = await run_manager(user_input, user_id)
+        result = await run_manager(user_input, user_id, image_url=image_url)
         print(result)
 
         xml_response = f"""
@@ -61,7 +64,7 @@ async def send_whatsapp_message():
             from_='whatsapp:+14155238886',
             body='Greetings from Istanbul Medic!',
             media_url= 'https://raw.githubusercontent.com/dianephan/flask_upload_photos/main/UPLOADS/DRAW_THE_OWL_MEME.png',
-            to='whatsapp:+18312959447'
+            to='whatsapp:+905538589024'
         )
         return {"sid": message.sid}
     except Exception as error:
@@ -74,13 +77,21 @@ async def send_whatsapp_message():
 async def istanbulMedic_agent(request: Request):
     try:
         form = await request.form()
-        user_input = form.get("Body", "")
-        user_id = "test_user"
         print("form", form)
+        user_input = form.get("Body", "")
+        user_id = form.get("From", "unknown_user")
+        
+        media_num = int(form.get("NumMedia",0))
+        image_url = None
+        for i in range(media_num):
+            media_type = form.get(f"MediaContentType{i}")
+            if media_type.startswith("image/"):
+                image_url = form.get(f"MediaUrl{i}")
+                break
 
-        print(f"Incoming WhatsApp message from {user_id}: {user_input}")
+        print(f"📩 WhatsApp message from {user_id}: {user_input}")
 
-        result = await run_manager(user_input, user_id)
+        result = await run_manager(user_input, user_id,image_url=image_url)
 
         xml_response = f"""
         <Response>
@@ -90,13 +101,12 @@ async def istanbulMedic_agent(request: Request):
         return Response(content=xml_response.strip(), media_type="text/xml")
 
     except Exception as e:
-        print(f"❌ Error: {e}")
-        error_response = """
+        print(f"❌ Webhook error: {e}")
+        return Response(content="""
         <Response>
             <Message>Üzgünüz, bir hata oluştu. Lütfen tekrar deneyin.</Message>
         </Response>
-        """
-        return Response(content=error_response.strip(), media_type="text/xml")
+        """.strip(), media_type="text/xml")
 
 
 if __name__ == "__main__":
