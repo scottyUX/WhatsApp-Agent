@@ -6,6 +6,8 @@ from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
 from dotenv import load_dotenv
 import asyncio
+import requests
+import base64
 #from agent.supervisor import supervisor_agent, Runner
 from agent.manager_agent import run_manager
 # Load environment variables from .env file
@@ -88,10 +90,17 @@ async def istanbulMedic_agent(request: Request):
             if media_type.startswith("image/"):
                 image_url = form.get(f"MediaUrl{i}")
                 break
+        
+        data_url = None 
+        if image_url:
+            auth = (account_sid, auth_token)
+            response = requests.get(image_url, auth=auth)       
+            encoded_image = base64.b64encode(response.content).decode('utf-8')
+            data_url = f"data:image/jpeg;base64,{encoded_image}"
 
         print(f"📩 WhatsApp message from {user_id}: {user_input}")
 
-        result = await run_manager(user_input, user_id,image_url=image_url)
+        result = await run_manager(user_input, user_id,image_url=data_url)
 
         xml_response = f"""
         <Response>
