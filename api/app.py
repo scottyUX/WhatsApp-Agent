@@ -100,6 +100,7 @@ async def istanbulMedic_agent(request: Request):
             data_url = f"data:image/jpeg;base64,{encoded_image}"
             print("Image request is succesful: ",data_url)
 
+        print(image_url)
         print(f"📩 WhatsApp message from {user_id}: {user_input}")
 
         result = await run_manager(user_input, user_id,image_url=data_url)
