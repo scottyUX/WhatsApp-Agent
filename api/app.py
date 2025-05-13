@@ -93,10 +93,12 @@ async def istanbulMedic_agent(request: Request):
         
         data_url = None 
         if image_url:
+            print("Image getting requested")
             auth = (account_sid, auth_token)
             response = requests.get(image_url, auth=auth)       
             encoded_image = base64.b64encode(response.content).decode('utf-8')
             data_url = f"data:image/jpeg;base64,{encoded_image}"
+            print("Image request is succesful: ",data_url)
 
         print(f"📩 WhatsApp message from {user_id}: {user_input}")
 
