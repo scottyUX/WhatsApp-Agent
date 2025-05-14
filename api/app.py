@@ -10,6 +10,7 @@ import requests
 import base64
 #from agent.supervisor import supervisor_agent, Runner
 from agent.manager_agent import run_manager
+from data.handle_twilio import handle_image_urls
 # Load environment variables from .env file
 load_dotenv()
 
@@ -82,28 +83,11 @@ async def istanbulMedic_agent(request: Request):
         print("form", form)
         user_input = form.get("Body", "")
         user_id = form.get("From", "unknown_user")
-        
-        media_num = int(form.get("NumMedia",0))
-        image_url = None
-        for i in range(media_num):
-            media_type = form.get(f"MediaContentType{i}")
-            if media_type.startswith("image/"):
-                image_url = form.get(f"MediaUrl{i}")
-                break
-        
-        data_url = None 
-        if image_url:
-            print("Image getting requested")
-            auth = (account_sid, auth_token)
-            response = requests.get(image_url, auth=auth)       
-            encoded_image = base64.b64encode(response.content).decode('utf-8')
-            data_url = f"data:image/jpeg;base64,{encoded_image}"
-            print("Image request is succesful: ",data_url)
+        image_urls = handle_image_urls(form)
 
-        print(f"Our image url: {image_url} and data url: {data_url}")
         print(f"📩 WhatsApp message from {user_id}: {user_input}")
 
-        result = await run_manager(user_input, user_id,image_url=data_url)
+        result = await run_manager(user_input, user_id,image_urls=image_urls)
 
         xml_response = f"""
         <Response>

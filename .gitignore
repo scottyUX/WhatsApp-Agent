@@ -29,3 +29,5 @@ build/
 # Local test/development folders
 
 .venv/
+agent/images/
+result.txt
