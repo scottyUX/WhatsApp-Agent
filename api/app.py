@@ -96,9 +96,9 @@ async def istanbulMedic_agent(request: Request):
         if user_id in user_tasks and not user_tasks[user_id].done():
             print(f"🔄 Cancelling previous task for {user_id}...")
         else:
+            print("Task created")
             async def wrapped():
-                async with user_locks[user_id]:
-                    await process_user_requests(user_id, user_input)
+                await process_user_requests(user_id, user_input)
             task = asyncio.create_task(wrapped())
             user_tasks[user_id] = task
 
