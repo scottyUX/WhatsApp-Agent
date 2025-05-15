@@ -1,7 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, BackgroundTasks
 from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
 from dotenv import load_dotenv
@@ -92,11 +92,16 @@ async def istanbulMedic_agent(request: Request):
         await add_to_cache(user_id, image_urls, "image")
         await add_to_cache(user_id, audio_urls, "audio")
 
+        if user_id not in user_locks:
+            user_locks[user_id] = asyncio.Lock()
+
         if user_id in user_tasks and not user_tasks[user_id].done():
-            print(f"🚫 Task already running for {user_id}, skipping new task.")
+            print(f"🔄 Cancelling previous task for {user_id}...")
         else:
-            task = asyncio.create_task(task_runner(user_id, user_input))
-            user_tasks[user_id] = task
+            async def wrapped():
+                async with user_locks[user_id]:
+                    await process_user_requests(user_id, user_input)
+            BackgroundTasks.add_task(asyncio.run, wrapped())
 
         xml_response = f"""
         <Response>
@@ -112,15 +117,6 @@ async def istanbulMedic_agent(request: Request):
             <Message>Üzgünüz, bir hata oluştu. Lütfen tekrar deneyin.</Message>
         </Response>
         """.strip(), media_type="text/xml")
-
-async def task_runner(user_id, user_input):
-    try:
-        await process_user_requests(user_id, user_input)
-    except Exception as e:
-        print(f"🧨 task_runner error for {user_id}: {e}")
-    finally:
-        user_tasks.pop(user_id, None)
-        user_locks.pop(user_id, None)
 
 async def process_user_requests(user_id, user_input):
     if user_id not in user_locks:
