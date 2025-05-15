@@ -95,6 +95,7 @@ async def istanbulMedic_agent(request: Request):
             user_tasks[user_id].cancel()
 
         user_tasks[user_id] = asyncio.create_task(process_user_requests(user_id,user_input))
+        print("User task created")
 
         xml_response = f"""
         <Response>
