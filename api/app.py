@@ -99,7 +99,8 @@ async def istanbulMedic_agent(request: Request):
             async def wrapped():
                 async with user_locks[user_id]:
                     await process_user_requests(user_id, user_input)
-            BackgroundTasks.add_task(asyncio.run, wrapped())
+            task = asyncio.create_task(wrapped())
+            user_tasks[user_id] = task
 
         xml_response = f"""
         <Response>
