@@ -66,8 +66,8 @@ async def send_whatsapp_message():
         message = client.messages.create(
             from_='whatsapp:+14155238886',
             body='Greetings from Istanbul Medic!',
-            media_url= 'https://raw.githubusercontent.com/dianephan/flask_upload_photos/main/UPLOADS/DRAW_THE_OWL_MEME.png',
-            to='whatsapp:+905538589024'
+            media_url= './speech.mp3',
+            to='whatsapp:+18312959447'
         )
         return {"sid": message.sid}
     except Exception as error:
