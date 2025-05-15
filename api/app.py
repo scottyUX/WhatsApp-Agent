@@ -102,6 +102,7 @@ async def istanbulMedic_agent(request: Request):
             print(f"🚀 Creating task for {user_id}")
             async def wrapped():
                 async with user_locks[user_id]:
+                    print(f"🔒 Acquired lock for {user_id}")
                     await asyncio.sleep(1) 
                     await process_user_requests(user_id,user_input)
             task = asyncio.create_task(wrapped())
