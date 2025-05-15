@@ -21,6 +21,7 @@ auth_token = os.getenv("TWILIO_AUTH_TOKEN")
 client = Client(account_sid, auth_token)
 print("client", client)
 user_tasks = {}
+user_locks = {} 
 
 app = FastAPI()
 
@@ -111,38 +112,43 @@ async def istanbulMedic_agent(request: Request):
         </Response>
         """.strip(), media_type="text/xml")
 
-async def process_user_requests(user_id,user_input):
-    try:
-        print(f"🔄 Processing requests for {user_id}...")
-        await asyncio.sleep(1)
+async def process_user_requests(user_id, user_input):
+    # Her kullanıcıya özel Lock oluştur
+    if user_id not in user_locks:
+        user_locks[user_id] = asyncio.Lock()
+    
+    async with user_locks[user_id]:
+        try:
+            print(f"🔄 Processing requests for {user_id}...")
+            await asyncio.sleep(1)
 
-        cached_images = await get_from_cache(user_id, "image")
-        cached_audios = await get_from_cache(user_id, "audio")
+            cached_images = await get_from_cache(user_id, "image")
+            cached_audios = await get_from_cache(user_id, "audio")
 
-        combined_images = [img for _, img in cached_images]
-        combined_audios = [audio for _, audio in cached_audios]
+            combined_images = [img for _, img in cached_images]
+            combined_audios = [audio for _, audio in cached_audios]
 
-        print(f"🖼️ Combined images: {combined_images}")
-        print(f"🎵 Combined audio: {combined_audios}")
+            print(f"🖼️ Combined images: {combined_images}")
+            print(f"🎵 Combined audio: {combined_audios}")
 
-        result = await run_manager(user_input, user_id, image_urls=combined_images)
+            result = await run_manager(user_input, user_id, image_urls=combined_images)
 
-        message = client.messages.create(
-            from_='whatsapp:+14155238886',
-            body=result,
-            to=user_id
-        )
-        
-        print(f"✅ Message sent to {user_id}: {result}")
+            message = client.messages.create(
+                from_='whatsapp:+14155238886',
+                body=result,
+                to=user_id
+            )
+            
+            print(f"✅ Message sent to {user_id}: {result}")
 
-    except asyncio.CancelledError:
-        print(f"⏹️ Task for {user_id} was cancelled.")
-    except Exception as e:
-        print(f"❌ Error processing requests for {user_id}: {e}")
-    finally:
-        user_tasks.pop(user_id, None)
-        clear_cache(user_id)
-
+        except asyncio.CancelledError as e:
+            print(f"⏹️ Task for {user_id} was cancelled: {e}")
+        except Exception as e:
+            print(f"❌ Error processing requests for {user_id}: {e}")
+        finally:
+            user_tasks.pop(user_id, None)
+            user_locks.pop(user_id, None)
+            clear_cache(user_id)
 
 if __name__ == "__main__":
     import uvicorn
