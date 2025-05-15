@@ -93,12 +93,17 @@ async def istanbulMedic_agent(request: Request):
         await add_to_cache(user_id, audio_urls, "audio")
 
 
+        if user_id not in user_locks:
+            user_locks[user_id] = asyncio.Lock()
+
         if user_id in user_tasks and not user_tasks[user_id].done():
-            print(f"🔄 Cancelling previous task for {user_id}...")
+            print(f"🕒 Task already running for {user_id}, skipping.")
         else:
-            print("Task created")
+            print(f"🚀 Creating task for {user_id}")
             async def wrapped():
-                await process_user_requests(user_id, user_input)
+                async with user_locks[user_id]:
+                    await asyncio.sleep(1) 
+                    await process_user_requests(user_id,user_input)
             task = asyncio.create_task(wrapped())
             user_tasks[user_id] = task
 
@@ -117,40 +122,39 @@ async def istanbulMedic_agent(request: Request):
         </Response>
         """.strip(), media_type="text/xml")
 
-async def process_user_requests(user_id, user_input):
-    if user_id not in user_locks:
-        user_locks[user_id] = asyncio.Lock()
-    
-    async with user_locks[user_id]:
-        try:
-            print(f"🔄 Processing requests for {user_id}...")
-            await asyncio.sleep(1)
+async def process_user_requests(user_id,user_input):
+    try:
+        print(f"🔄 Processing requests for {user_id}...")
 
-            cached_images = await get_from_cache(user_id, "image")
-            cached_audios = await get_from_cache(user_id, "audio")
+        # Tüm cache'den verileri al
+        cached_images = await get_from_cache(user_id, "image")
+        cached_audios = await get_from_cache(user_id, "audio")
+        cached_texts = await get_from_cache(user_id, "text")
 
-            combined_images = [img for _, img in cached_images]
-            combined_audios = [audio for _, audio in cached_audios]
+        combined_images = [img for _, img in cached_images]
+        combined_audios = [audio for _, audio in cached_audios]
 
-            print(f"🖼️ Combined images: {combined_images}")
-            print(f"🎵 Combined audio: {combined_audios}")
+        print(f"🖼️ Images: {combined_images}")
+        print(f"🎵 Audio: {combined_audios}")
 
-            result = await run_manager(user_input, user_id, image_urls=combined_images)
+        # Agent cevabı al
+        result = await run_manager(user_input, user_id, image_urls=combined_images)
 
-            message = client.messages.create(
-                from_='whatsapp:+14155238886',
-                body=result,
-                to=user_id
-            )
-            
-            print(f"✅ Message sent to {user_id}: {result}")
+        # Mesaj gönder
+        client.messages.create(
+            from_='whatsapp:+14155238886',
+            body=result,
+            to=user_id
+        )
+        print(f"✅ Sent to {user_id}: {result}")
 
-        except asyncio.CancelledError as e:
-            print(f"⏹️ Task for {user_id} was cancelled: {e}")
-        except Exception as e:
-            print(f"❌ Error processing requests for {user_id}: {e}")
-        finally:
-            clear_cache(user_id)
+    except asyncio.CancelledError:
+        print(f"⏹️ Task for {user_id} was cancelled.")
+    except Exception as e:
+        print(f"❌ Error processing {user_id}: {e}")
+    finally:
+        await clear_cache(user_id)
+        user_tasks.pop(user_id, None)
 
 if __name__ == "__main__":
     import uvicorn
