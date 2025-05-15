@@ -10,7 +10,8 @@ import requests
 import base64
 #from agent.supervisor import supervisor_agent, Runner
 from agent.manager_agent import run_manager
-from data.handle_twilio import handle_image_urls
+from data.handle_twilio import handle_image_urls,handle_audio_urls
+from data.caching import add_to_cache, get_from_cache, clear_cache
 # Load environment variables from .env file
 load_dotenv()
 
@@ -19,6 +20,7 @@ account_sid = os.getenv("TWILIO_ACCOUNT_SID")
 auth_token = os.getenv("TWILIO_AUTH_TOKEN")
 client = Client(account_sid, auth_token)
 print("client", client)
+user_tasks = {}
 
 app = FastAPI()
 
@@ -84,14 +86,19 @@ async def istanbulMedic_agent(request: Request):
         user_input = form.get("Body", "")
         user_id = form.get("From", "unknown_user")
         image_urls = handle_image_urls(form)
+        audio_urls = handle_audio_urls(form)
 
-        print(f"📩 WhatsApp message from {user_id}: {user_input}")
+        await add_to_cache(user_id, image_urls, "image")
+        await add_to_cache(user_id, audio_urls, "audio")
 
-        result = await run_manager(user_input, user_id,image_urls=image_urls)
+        if user_id in user_tasks:
+            user_tasks[user_id].cancel()
+
+        user_tasks[user_id] = asyncio.create_task(process_user_requests(user_id,user_input))
 
         xml_response = f"""
         <Response>
-            <Message>{result}</Message>
+            <Message>İsteğiniz İşleniyor...</Message>
         </Response>
         """
         return Response(content=xml_response.strip(), media_type="text/xml")
@@ -103,6 +110,37 @@ async def istanbulMedic_agent(request: Request):
             <Message>Üzgünüz, bir hata oluştu. Lütfen tekrar deneyin.</Message>
         </Response>
         """.strip(), media_type="text/xml")
+
+async def process_user_requests(user_id,user_input):
+    try:
+        await asyncio.sleep(2)
+
+        cached_images = await get_from_cache(user_id, "image")
+        cached_audios = await get_from_cache(user_id, "audio")
+
+        combined_images = [img for _, img in cached_images]
+        combined_audios = [audio for _, audio in cached_audios]
+
+        print(f"🖼️ Combined images: {combined_images}")
+        print(f"🎵 Combined audio: {combined_audios}")
+
+        result = await run_manager(user_input, user_id, image_urls=combined_images)
+
+        message = client.messages.create(
+            from_='whatsapp:+14155238886',
+            body=result,
+            to=user_id
+        )
+        
+        print(f"✅ Message sent to {user_id}: {result}")
+
+    except asyncio.CancelledError:
+        print(f"⏹️ Task for {user_id} was cancelled.")
+    except Exception as e:
+        print(f"❌ Error processing requests for {user_id}: {e}")
+    finally:
+        user_tasks.pop(user_id, None)
+        clear_cache(user_id)
 
 
 if __name__ == "__main__":
