@@ -1,13 +1,18 @@
 from dotenv import load_dotenv
+from agents import Agent, Runner
 import os
-import httpx
 import base64
-from openai import OpenAI
+import asyncio
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-
+image_agent = Agent(
+    name="ImageExplainAgent",
+    instructions="""Assume that you are a hair transplant doctor.
+    There is an image which shows the top of a person's head.
+    Your task is to decide how many hair grafts are needed for a hair transplant.
+    """,
+    model="gpt-4.1",
+)
 
 async def run_agent(user_input: str,image_urls: list) -> str:
     print("🗣️ Image agent activated")
@@ -23,10 +28,12 @@ async def run_agent(user_input: str,image_urls: list) -> str:
     )
     return result.final_output or "Sorry, I couldn't find an answer."
 
-    except Exception as e:
-        print(f"❌ Error in image agent: {e}")
-        return "I apologize, but I'm having trouble analyzing the image. Please try sending the image again or describe your hair loss situation in text."
 
+#To test this agent with a local image
+def encode_image_to_base64(image_path: str) -> str:
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode("utf-8")
+    
 if __name__ == "__main__":
     image_path1 = os.path.join(os.path.dirname(__file__), "images", "photo1.png")
     image_path2 = os.path.join(os.path.dirname(__file__), "images", "photo2.png")
