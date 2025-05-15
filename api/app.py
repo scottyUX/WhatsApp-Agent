@@ -92,10 +92,9 @@ async def istanbulMedic_agent(request: Request):
         await add_to_cache(user_id, audio_urls, "audio")
 
         if user_id in user_tasks and not user_tasks[user_id].done():
-            user_tasks[user_id].cancel()
-
-        user_tasks[user_id] = asyncio.create_task(process_user_requests(user_id,user_input))
-        print("User task created")
+            print(f"🚫 Task already running for {user_id}, skipping new task.")
+        else:
+            user_tasks[user_id] = asyncio.create_task(process_user_requests(user_id, user_input))
 
         xml_response = f"""
         <Response>
