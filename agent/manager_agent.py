@@ -55,14 +55,14 @@ def detect_language(text: str) -> str:
         print(f"Language detection failed: {e}")
         return "en"  # fallback
 
-async def run_manager(user_input: str, user_id: str, image_url: str = None) -> str:
+async def run_manager(user_input: str, user_id: str, image_urls: list = []) -> str:
     print(f"📩 Message from {user_id}: {user_input}")
 
     lang = detect_language(user_input)
     print(f"🌍 Detected language: {lang}")
 
-    if image_url:
-        return await run_image_agent(user_input, image_url)
+    if len(image_urls) > 0:
+        return await run_image_agent(user_input, image_urls)
     elif lang == "de":
         return await run_german_agent(user_input)
     elif lang == "es":
