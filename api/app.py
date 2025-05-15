@@ -92,8 +92,6 @@ async def istanbulMedic_agent(request: Request):
         await add_to_cache(user_id, image_urls, "image")
         await add_to_cache(user_id, audio_urls, "audio")
 
-        if user_id not in user_locks:
-            user_locks[user_id] = asyncio.Lock()
 
         if user_id in user_tasks and not user_tasks[user_id].done():
             print(f"🔄 Cancelling previous task for {user_id}...")
