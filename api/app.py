@@ -95,7 +95,8 @@ async def istanbulMedic_agent(request: Request):
         if user_id in user_tasks and not user_tasks[user_id].done():
             print(f"🚫 Task already running for {user_id}, skipping new task.")
         else:
-            user_tasks[user_id] = asyncio.create_task(process_user_requests(user_id, user_input))
+            task = asyncio.create_task(task_runner(user_id, user_input))
+            user_tasks[user_id] = task
 
         xml_response = f"""
         <Response>
@@ -112,8 +113,16 @@ async def istanbulMedic_agent(request: Request):
         </Response>
         """.strip(), media_type="text/xml")
 
+async def task_runner(user_id, user_input):
+    try:
+        await process_user_requests(user_id, user_input)
+    except Exception as e:
+        print(f"🧨 task_runner error for {user_id}: {e}")
+    finally:
+        user_tasks.pop(user_id, None)
+        user_locks.pop(user_id, None)
+
 async def process_user_requests(user_id, user_input):
-    # Her kullanıcıya özel Lock oluştur
     if user_id not in user_locks:
         user_locks[user_id] = asyncio.Lock()
     
@@ -146,8 +155,6 @@ async def process_user_requests(user_id, user_input):
         except Exception as e:
             print(f"❌ Error processing requests for {user_id}: {e}")
         finally:
-            user_tasks.pop(user_id, None)
-            user_locks.pop(user_id, None)
             clear_cache(user_id)
 
 if __name__ == "__main__":
