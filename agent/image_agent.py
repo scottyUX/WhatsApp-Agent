@@ -7,62 +7,35 @@ load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-async def download_image(image_url: str) -> str:
-    """Download image from Twilio URL and convert to base64."""
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(image_url)
-            response.raise_for_status()
-            return base64.b64encode(response.content).decode('utf-8')
-    except Exception as e:
-        print(f"❌ Error downloading image: {e}")
-        raise
 
-async def run_agent(user_input: str, image_url: str) -> str:
+
+async def run_agent(user_input: str,image_urls: list) -> str:
     print("🗣️ Image agent activated")
-    try:
-        # Download and encode the image
-        base64_image = await download_image(image_url)
-        
-        # Create the API request
-        response = client.chat.completions.create(
-            model="gpt-4-vision-preview",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "As a hair transplant doctor, analyze this image of a person's head and determine how many hair grafts would be needed for a hair transplant. Please provide a detailed assessment."
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}"
-                            }
-                        }
-                    ]
-                }
-            ],
-            max_tokens=500
-        )
-        
-        return response.choices[0].message.content
+    content = [{ "type":"input_text", "text": user_input}]
+    content += [{"type":"input_image","image_url": url} for url in image_urls]
+    result = await Runner.run(image_agent,
+        input=[
+            {
+                "role":"user",
+                "content": content
+            }
+        ]
+    )
+    return result.final_output or "Sorry, I couldn't find an answer."
 
     except Exception as e:
         print(f"❌ Error in image agent: {e}")
         return "I apologize, but I'm having trouble analyzing the image. Please try sending the image again or describe your hair loss situation in text."
 
 if __name__ == "__main__":
-    import asyncio
-    # Test with a local image
-    def encode_image_to_base64(image_path: str) -> str:
-        with open(image_path, "rb") as img_file:
-            return base64.b64encode(img_file.read()).decode("utf-8")
+    image_path1 = os.path.join(os.path.dirname(__file__), "images", "photo1.png")
+    image_path2 = os.path.join(os.path.dirname(__file__), "images", "photo2.png")
     
-    image_path = os.path.join(os.path.dirname(__file__), "images", "photo1.png")
-    base64_image = encode_image_to_base64(image_path)
-    image_url = f"data:image/png;base64,{base64_image}"
+    base64_image1 = encode_image_to_base64(image_path1)
+    base64_image2 = encode_image_to_base64(image_path2)
+    image_urls = [f"data:image/png;base64,{base64_image1}", f"data:image/png;base64,{base64_image2}"]
     loop = asyncio.get_event_loop()
-    result = loop.run_until_complete(run_agent("What is in this image?", image_url))
+    result = loop.run_until_complete(run_agent("What is in this image?",image_urls))
+    with open("result.txt", "w") as f:
+        f.write(result)
     print(result)
