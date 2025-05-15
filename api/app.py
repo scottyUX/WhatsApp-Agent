@@ -113,7 +113,8 @@ async def istanbulMedic_agent(request: Request):
 
 async def process_user_requests(user_id,user_input):
     try:
-        await asyncio.sleep(2)
+        print(f"🔄 Processing requests for {user_id}...")
+        await asyncio.sleep(1)
 
         cached_images = await get_from_cache(user_id, "image")
         cached_audios = await get_from_cache(user_id, "audio")
