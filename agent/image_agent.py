@@ -11,7 +11,7 @@ image_agent = Agent(
     There is an image which shows the top of a person's head.
     Your task is to decide how many hair grafts are needed for a hair transplant.
     """,
-    model="gpt-3.5-turbo",
+    model="gpt-4o",
 )
 
 async def run_agent(user_input: str,image_urls: list) -> str:
