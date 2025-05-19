@@ -9,3 +9,4 @@ typer
 twilio
 openai-agents
 python-multipart
+elevenlabs
