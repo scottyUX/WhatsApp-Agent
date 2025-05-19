@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 import os
 import base64
 import requests
+from io import BytesIO
+
 load_dotenv()
 
 account_sid = os.getenv("TWILIO_ACCOUNT_SID")
@@ -21,3 +23,14 @@ def handle_image_urls(form: FormData) -> list:
             encoded_url = f"data:image/jpeg;base64,{encoded_image}"
             image_urls.append(encoded_url)
     return image_urls
+
+def handle_audio_urls(form: FormData) -> list:
+    media_num = int(form.get("NumMedia",0))
+    audio_urls = []
+    for i in range(media_num):
+        media_type = form.get(f"MediaContentType{i}")
+        if media_type.startswith("audio/"):
+            audio_url = form.get(f"MediaUrl{i}")
+            audio_urls.append(audio_url)
+    return audio_urls
+
