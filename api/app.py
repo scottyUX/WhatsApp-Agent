@@ -93,8 +93,12 @@ async def istanbulMedic_agent(request: Request):
         cached_images = await get_from_cache(user_id, "image")
         cached_audios = await get_from_cache(user_id, "audio")
 
-        combined_images = [img for _, img in cached_images]
-        combined_audios = [audio for _, audio in cached_audios]
+        combined_images = []
+        combined_audios = []
+        for _,img in cached_images:
+            combined_images.append(img)
+        for _,audio in cached_audios:
+            combined_audios.append(audio)
 
         print(f"🖼️ Images: {combined_images}")
         print(f"🎵 Audio: {combined_audios}")
