@@ -96,9 +96,9 @@ async def istanbulMedic_agent(request: Request):
         combined_images = []
         combined_audios = []
         for _,img in cached_images:
-            combined_images.append(img)
+            combined_images.extend(img)
         for _,audio in cached_audios:
-            combined_audios.append(audio)
+            combined_audios.extend(audio)
 
         print(f"🖼️ Images: {combined_images}")
         print(f"🎵 Audio: {combined_audios}")
