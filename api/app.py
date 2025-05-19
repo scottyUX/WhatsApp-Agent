@@ -6,8 +6,7 @@ from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
 from dotenv import load_dotenv
 import asyncio
-import requests
-import base64
+import time
 #from agent.supervisor import supervisor_agent, Runner
 from agent.manager_agent import run_manager
 from data.handle_twilio import handle_image_urls,handle_audio_urls
@@ -20,8 +19,6 @@ account_sid = os.getenv("TWILIO_ACCOUNT_SID")
 auth_token = os.getenv("TWILIO_AUTH_TOKEN")
 client = Client(account_sid, auth_token)
 print("client", client)
-user_tasks = {}
-user_locks = {} 
 
 app = FastAPI()
 
@@ -91,27 +88,22 @@ async def istanbulMedic_agent(request: Request):
 
         await add_to_cache(user_id, image_urls, "image")
         await add_to_cache(user_id, audio_urls, "audio")
+        time.sleep(1)
+        
+        cached_images = await get_from_cache(user_id, "image")
+        cached_audios = await get_from_cache(user_id, "audio")
 
+        combined_images = [img for _, img in cached_images]
+        combined_audios = [audio for _, audio in cached_audios]
 
-        if user_id not in user_locks:
-            user_locks[user_id] = asyncio.Lock()
+        print(f"🖼️ Images: {combined_images}")
+        print(f"🎵 Audio: {combined_audios}")
 
-        if user_id in user_tasks and not user_tasks[user_id].done():
-            print(f"🕒 Task already running for {user_id}, skipping.")
-        else:
-            print(f"🚀 Creating task for {user_id}")
-            async def wrapped():
-                print(f"🔒 Waiting for lock for {user_id}")
-                async with user_locks[user_id]:
-                    print(f"🔒 Acquired lock for {user_id}")
-                    await asyncio.sleep(1) 
-                    await process_user_requests(user_id,user_input)
-            task = asyncio.create_task(wrapped())
-            user_tasks[user_id] = task
+        result = await run_manager(user_input, user_id, image_urls=combined_images)
 
         xml_response = f"""
         <Response>
-            <Message>İsteğiniz İşleniyor...</Message>
+            <Message>{result}</Message>
         </Response>
         """
         return Response(content=xml_response.strip(), media_type="text/xml")
@@ -124,14 +116,12 @@ async def istanbulMedic_agent(request: Request):
         </Response>
         """.strip(), media_type="text/xml")
 
-async def process_user_requests(user_id,user_input):
+""" async def process_user_requests(user_id,user_input):
     try:
         print(f"🔄 Processing requests for {user_id}...")
 
-        # Tüm cache'den verileri al
         cached_images = await get_from_cache(user_id, "image")
         cached_audios = await get_from_cache(user_id, "audio")
-        cached_texts = await get_from_cache(user_id, "text")
 
         combined_images = [img for _, img in cached_images]
         combined_audios = [audio for _, audio in cached_audios]
@@ -139,10 +129,8 @@ async def process_user_requests(user_id,user_input):
         print(f"🖼️ Images: {combined_images}")
         print(f"🎵 Audio: {combined_audios}")
 
-        # Agent cevabı al
         result = await run_manager(user_input, user_id, image_urls=combined_images)
 
-        # Mesaj gönder
         client.messages.create(
             from_='whatsapp:+14155238886',
             body=result,
@@ -155,8 +143,7 @@ async def process_user_requests(user_id,user_input):
     except Exception as e:
         print(f"❌ Error processing {user_id}: {e}")
     finally:
-        await clear_cache(user_id)
-        user_tasks.pop(user_id, None)
+        await clear_cache(user_id) """
 
 if __name__ == "__main__":
     import uvicorn
