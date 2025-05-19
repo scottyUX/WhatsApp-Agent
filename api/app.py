@@ -20,6 +20,7 @@ account_sid = os.getenv("TWILIO_ACCOUNT_SID")
 auth_token = os.getenv("TWILIO_AUTH_TOKEN")
 client = Client(account_sid, auth_token)
 print("client", client)
+user_tasks = {}
 
 app = FastAPI()
 
@@ -94,9 +95,9 @@ async def istanbulMedic_agent(request: Request):
         print("audio_urls", audio_urls)
         print("user_input", user_input)
         print(f"📩 WhatsApp message from {user_id}: {user_input}")
-
+        
         result = await run_manager(user_input, user_id,image_urls=image_urls)
-
+        
         xml_response = f"""
         <Response>
             <Message>{result}</Message>
@@ -111,7 +112,6 @@ async def istanbulMedic_agent(request: Request):
             <Message>Üzgünüz, bir hata oluştu. Lütfen tekrar deneyin.</Message>
         </Response>
         """.strip(), media_type="text/xml")
-
 
 if __name__ == "__main__":
     import uvicorn
