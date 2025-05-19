@@ -9,11 +9,11 @@ load_dotenv()
 
 account_sid = os.getenv("TWILIO_ACCOUNT_SID")
 auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+auth = (account_sid, auth_token)
 
 def handle_image_urls(form: FormData) -> list:
     media_num = int(form.get("NumMedia",0))
     image_urls = []
-    auth = (account_sid, auth_token)
     for i in range(media_num):
         media_type = form.get(f"MediaContentType{i}")
         if media_type.startswith("image/"):
@@ -33,4 +33,3 @@ def handle_audio_urls(form: FormData) -> list:
             audio_url = form.get(f"MediaUrl{i}")
             audio_urls.append(audio_url)
     return audio_urls
-
