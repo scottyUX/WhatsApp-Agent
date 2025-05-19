@@ -8,9 +8,10 @@ from dotenv import load_dotenv
 import asyncio
 import requests
 import base64
+from utils.audio_converter import transcribe_twilio_media
 #from agent.supervisor import supervisor_agent, Runner
 from agent.manager_agent import run_manager
-from data.handle_twilio import handle_image_urls,handle_audio_urls
+from data.handle_twilio import handle_image_urls, handle_audio_urls
 # Load environment variables from .env file
 load_dotenv()
 
@@ -83,10 +84,16 @@ async def istanbulMedic_agent(request: Request):
         form = await request.form()
         print("form", form)
         user_input = form.get("Body", "")
+        print("user_input", user_input)
         user_id = form.get("From", "unknown_user")
         image_urls = handle_image_urls(form)
         audio_urls = handle_audio_urls(form)
-
+        if audio_urls:
+            audio_transcript = transcribe_twilio_media(audio_urls[0])
+            user_input = f"[Voice Message]: {audio_transcript}"
+        print("image_urls", image_urls)
+        print("audio_urls", audio_urls)
+        print("user_input", user_input)
         print(f"📩 WhatsApp message from {user_id}: {user_input}")
         
         result = await run_manager(user_input, user_id,image_urls=image_urls)
