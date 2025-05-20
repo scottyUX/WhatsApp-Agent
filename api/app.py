@@ -98,6 +98,8 @@ async def istanbulMedic_agent(request: Request):
             cached_images = get_media_from_redis_cache(user_id, "image")
             cached_audios = get_media_from_redis_cache(user_id, "audio")
             cached_texts = "".join(get_from_redis_cache(user_id, "text"))
+            print("cached_texts", cached_texts)
+            print("cached_images", cached_images)
 
             result = await run_manager(user_input, user_id, image_urls=cached_images)
 
