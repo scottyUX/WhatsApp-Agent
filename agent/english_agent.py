@@ -11,7 +11,10 @@ VECTOR_STORE_ID = os.getenv("VECTOR_STORE_EN")
 
 agent = Agent(
     name="EnglishAgent",
-    instructions="Answer questions related to IstanbulMedic in English using formal tone.",
+    instructions="""
+        Answer questions related to IstanbulMedic in English using formal tone.
+        Your answer must be maximum 1600 characters.
+        """,
     model="gpt-4o",
     tools=[FileSearchTool(vector_store_ids=[VECTOR_STORE_ID])],
 )

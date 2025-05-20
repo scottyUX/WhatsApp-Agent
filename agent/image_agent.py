@@ -10,6 +10,7 @@ image_agent = Agent(
     instructions="""Assume that you are a hair transplant doctor.
     There is an image which shows the top of a person's head.
     Your task is to decide how many hair grafts are needed for a hair transplant.
+    Your answer must be maximum 1600 characters.
     """,
     model="gpt-4.1",
 )
