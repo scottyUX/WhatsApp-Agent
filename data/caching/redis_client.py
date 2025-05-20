@@ -3,8 +3,8 @@ from dotenv import load_dotenv
 import os
 load_dotenv()
 
-redis_url = os.getenv("REDIS_URL")
-redis_token = os.getenv("REDIS_TOKEN")
+redis_url = os.getenv("KV_REST_API_URL")
+redis_token = os.getenv("KV_REST_API_TOKEN")
 
 r = Redis(url=redis_url,token=redis_token)
 
