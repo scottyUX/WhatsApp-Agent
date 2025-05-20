@@ -86,12 +86,12 @@ async def istanbulMedic_agent(request: Request):
         image_urls = handle_image_urls(form)
         audio_urls = handle_audio_urls(form)
 
-        await add_list_to_cache(user_id, image_urls, "image")
-        await add_list_to_cache(user_id, audio_urls, "audio")
+        add_list_to_cache(user_id, image_urls, "image")
+        add_list_to_cache(user_id, audio_urls, "audio")
         await asyncio.sleep(1)
 
-        cached_images = await get_from_redis_cache(user_id, "image")
-        cached_audios = await get_from_redis_cache(user_id, "audio")
+        cached_images = get_from_redis_cache(user_id, "image")
+        cached_audios = get_from_redis_cache(user_id, "audio")
 
         combined_images = [img for img in cached_images]
         combined_audios = [audio for audio in cached_audios]
