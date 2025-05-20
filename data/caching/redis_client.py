@@ -16,8 +16,6 @@ def add_redis_cache_media(user_id: str, data: str,type: str):
     key = f"{user_id}:{type}"
     existence = r.exists(key)
     r.rpush(key,data)
-    if not existence:
-        r.expire(key,2)
     add_redis_media_counter(user_id)
     print(f"Cache updated for {user_id}: {key} -> {data}")
         
@@ -29,8 +27,6 @@ def add_redis_cache(user_id: str, data: str,type: str):
     key = f"{user_id}:{type}"
     existence = r.exists(key)
     r.rpush(key,data)
-    if not existence:
-        r.expire(key,2)
     print(f"Cache updated for {user_id}: {key} -> {data}")
     
 def add_redis_media_counter(user_id: str):
