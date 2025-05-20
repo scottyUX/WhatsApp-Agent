@@ -10,7 +10,7 @@ import time
 #from agent.supervisor import supervisor_agent, Runner
 from agent.manager_agent import run_manager
 from data.handle_twilio import handle_image_urls,handle_audio_urls
-from data.caching import add_to_cache, get_from_cache, clear_cache
+from data.caching.redis_client import add_redis_cache, get_from_redis_cache
 # Load environment variables from .env file
 load_dotenv()
 
@@ -86,19 +86,15 @@ async def istanbulMedic_agent(request: Request):
         image_urls = handle_image_urls(form)
         audio_urls = handle_audio_urls(form)
 
-        await add_to_cache(user_id, image_urls, "image")
-        await add_to_cache(user_id, audio_urls, "audio")
-        time.sleep(1)
-        
-        cached_images = await get_from_cache(user_id, "image")
-        cached_audios = await get_from_cache(user_id, "audio")
+        await add_redis_cache(user_id, image_urls, "image")
+        await add_redis_cache(user_id, audio_urls, "audio")
+        await asyncio.sleep(1)
 
-        combined_images = []
-        combined_audios = []
-        for _,img in cached_images:
-            combined_images.extend(img)
-        for _,audio in cached_audios:
-            combined_audios.extend(audio)
+        cached_images = await get_from_redis_cache(user_id, "image")
+        cached_audios = await get_from_redis_cache(user_id, "audio")
+
+        combined_images = [img for img in cached_images]
+        combined_audios = [audio for audio in cached_audios]
 
         print(f"🖼️ Images: {combined_images}")
         print(f"🎵 Audio: {combined_audios}")

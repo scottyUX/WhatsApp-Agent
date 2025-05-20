@@ -1,0 +1,41 @@
+from upstash_redis import Redis
+from dotenv import load_dotenv
+import os
+load_dotenv()
+
+redis_url = os.getenv("REDIS_URL")
+redis_token = os.getenv("REDIS_TOKEN")
+
+r = Redis(url=redis_url,token=redis_token)
+
+def add_image_list(user_id: str, image_urls: str):
+    for img in image_urls:
+        add_redis_cache(user_id, img,"image")
+
+def add_redis_cache(user_id: str, data: str,type: str):
+    key = f"{user_id}:{type}"
+    existence = r.exists(key)
+    r.rpush(key,data)
+    if not existence:
+        r.expire(key,2)
+    print(f"Cache updated for {user_id}: {key} -> {data}")
+    
+def get_from_redis_cache(user_id: str, type: str):
+    key = f"{user_id}:{type}"
+    data = r.lrange(key,0,-1)
+    if data:
+        print(f"Cache hit for {user_id}: {key} -> {data}")
+        return data
+    else:
+        print(f"Cache miss for {user_id}: {key}")
+        return None
+
+if __name__ == "__main__":
+    # Example usage
+    user_id = "test_user"
+    data1 = "test_data1"
+    type = "image"
+    data2 = "test_data2"
+    add_redis_cache(user_id, data1,type)
+    add_redis_cache(user_id, data2,type)
+    get_from_redis_cache(user_id, type)
