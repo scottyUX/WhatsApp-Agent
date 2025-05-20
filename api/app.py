@@ -109,12 +109,12 @@ async def istanbulMedic_agent(request: Request):
                 to=user_id
             )
             
-            xml_response = f"""
-            <Response>
-                <Message>{result}</Message>
-            </Response>
-            """
-            return Response(content=xml_response.strip(), media_type="text/xml")
+            # xml_response = f"""
+            # <Response>
+            #     <Message>{result}</Message>
+            # </Response>
+            # """
+            # return Response(content=xml_response.strip(), media_type="text/xml")
 
         else:
             return Response(content="<Response></Response>", media_type="text/xml")
