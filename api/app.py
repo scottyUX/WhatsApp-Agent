@@ -10,7 +10,7 @@ import time
 #from agent.supervisor import supervisor_agent, Runner
 from agent.manager_agent import run_manager
 from data.handle_twilio import handle_image_urls,handle_audio_urls
-from data.caching.redis_client import add_list_to_cache, get_from_redis_cache,clear_redis_cache
+from data.caching.redis_client import add_list_to_cache, get_from_redis_cache,clear_redis_cache,get_redis_media_counter
 # Load environment variables from .env file
 load_dotenv()
 
@@ -88,19 +88,23 @@ async def istanbulMedic_agent(request: Request):
 
         add_list_to_cache(user_id, image_urls, "image")
         add_list_to_cache(user_id, audio_urls, "audio")
+        media_count_old = get_redis_media_counter(user_id)
+        
         await asyncio.sleep(1)
+        media_count_new = get_redis_media_counter(user_id)
+        
+        if media_count_new == media_count_old:
+            cached_images = get_from_redis_cache(user_id, "image")
+            cached_audios = get_from_redis_cache(user_id, "audio")
 
-        cached_images = get_from_redis_cache(user_id, "image")
-        cached_audios = get_from_redis_cache(user_id, "audio")
+            result = await run_manager(user_input, user_id, image_urls=cached_images)
 
-        result = await run_manager(user_input, user_id, image_urls=cached_images)
-
-        xml_response = f"""
-        <Response>
-            <Message>{result}</Message>
-        </Response>
-        """
-        return Response(content=xml_response.strip(), media_type="text/xml")
+            xml_response = f"""
+            <Response>
+                <Message>{result}</Message>
+            </Response>
+            """
+            return Response(content=xml_response.strip(), media_type="text/xml")
 
     except Exception as e:
         print(f"❌ Webhook error: {e}")
