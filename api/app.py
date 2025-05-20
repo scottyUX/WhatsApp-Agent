@@ -91,7 +91,7 @@ async def istanbulMedic_agent(request: Request):
         add_text_to_cache(user_id, [user_input], "text")
         media_count_old = get_redis_media_counter(user_id)
         
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
         media_count_new = get_redis_media_counter(user_id)
         
         if media_count_new == media_count_old:
