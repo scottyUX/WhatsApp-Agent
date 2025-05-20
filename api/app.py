@@ -103,6 +103,12 @@ async def istanbulMedic_agent(request: Request):
 
             result = await run_manager(cached_texts, user_id, image_urls=cached_images)
 
+            message = client.messages.create(
+                from_='whatsapp:+14155238886',
+                body=result,
+                to=user_id
+            )
+            
             xml_response = f"""
             <Response>
                 <Message>{result}</Message>
