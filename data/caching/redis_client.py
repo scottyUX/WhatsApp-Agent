@@ -28,7 +28,7 @@ def get_from_redis_cache(user_id: str, type: str):
         return data
     else:
         print(f"Cache miss for {user_id}: {key}")
-        return None
+        return []
 
 if __name__ == "__main__":
     # Example usage
