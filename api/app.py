@@ -10,7 +10,7 @@ import time
 #from agent.supervisor import supervisor_agent, Runner
 from agent.manager_agent import run_manager
 from data.handle_twilio import handle_image_urls,handle_audio_urls
-from data.caching.redis_client import add_list_to_cache, get_from_redis_cache,clear_redis_cache,get_redis_media_counter
+from data.caching.redis_client import add_media_to_cache,add_text_to_cache, get_from_redis_cache,get_media_from_redis_cache,clear_redis_cache,get_redis_media_counter
 # Load environment variables from .env file
 load_dotenv()
 
@@ -86,16 +86,18 @@ async def istanbulMedic_agent(request: Request):
         image_urls = handle_image_urls(form)
         audio_urls = handle_audio_urls(form)
 
-        add_list_to_cache(user_id, image_urls, "image")
-        add_list_to_cache(user_id, audio_urls, "audio")
+        add_media_to_cache(user_id, image_urls, "image")
+        add_media_to_cache(user_id, audio_urls, "audio")
+        add_text_to_cache(user_id, [user_input], "text")
         media_count_old = get_redis_media_counter(user_id)
         
         await asyncio.sleep(1)
         media_count_new = get_redis_media_counter(user_id)
         
         if media_count_new == media_count_old:
-            cached_images = get_from_redis_cache(user_id, "image")
-            cached_audios = get_from_redis_cache(user_id, "audio")
+            cached_images = get_media_from_redis_cache(user_id, "image")
+            cached_audios = get_media_from_redis_cache(user_id, "audio")
+            cached_texts = "".join(get_from_redis_cache(user_id, "text"))
 
             result = await run_manager(user_input, user_id, image_urls=cached_images)
 
@@ -106,6 +108,9 @@ async def istanbulMedic_agent(request: Request):
             """
             return Response(content=xml_response.strip(), media_type="text/xml")
 
+        else:
+            return Response(content="<Response></Response>", media_type="text/xml")
+
     except Exception as e:
         print(f"❌ Webhook error: {e}")
         return Response(content="""
@@ -113,35 +118,6 @@ async def istanbulMedic_agent(request: Request):
             <Message>Üzgünüz, bir hata oluştu. Lütfen tekrar deneyin.</Message>
         </Response>
         """.strip(), media_type="text/xml")
-
-""" async def process_user_requests(user_id,user_input):
-    try:
-        print(f"🔄 Processing requests for {user_id}...")
-
-        cached_images = await get_from_cache(user_id, "image")
-        cached_audios = await get_from_cache(user_id, "audio")
-
-        combined_images = [img for _, img in cached_images]
-        combined_audios = [audio for _, audio in cached_audios]
-
-        print(f"🖼️ Images: {combined_images}")
-        print(f"🎵 Audio: {combined_audios}")
-
-        result = await run_manager(user_input, user_id, image_urls=combined_images)
-
-        client.messages.create(
-            from_='whatsapp:+14155238886',
-            body=result,
-            to=user_id
-        )
-        print(f"✅ Sent to {user_id}: {result}")
-
-    except asyncio.CancelledError:
-        print(f"⏹️ Task for {user_id} was cancelled.")
-    except Exception as e:
-        print(f"❌ Error processing {user_id}: {e}")
-    finally:
-        await clear_cache(user_id) """
 
 if __name__ == "__main__":
     import uvicorn

@@ -8,10 +8,10 @@ redis_token = os.getenv("KV_REST_API_TOKEN")
 
 r = Redis(url=redis_url,token=redis_token)
 
-def add_list_to_cache(user_id: str, data_list: list,type: str):
+def add_media_to_cache(user_id: str, data_list: list,type: str):
     for data in data_list:
         add_redis_cache_media(user_id, data,type)
-
+        
 def add_redis_cache_media(user_id: str, data: str,type: str):
     key = f"{user_id}:{type}"
     existence = r.exists(key)
@@ -19,6 +19,18 @@ def add_redis_cache_media(user_id: str, data: str,type: str):
     if not existence:
         r.expire(key,2)
     add_redis_media_counter(user_id)
+    print(f"Cache updated for {user_id}: {key} -> {data}")
+        
+def add_text_to_cache(user_id: str, data_list: list,type: str):
+    for data in data_list:
+        add_redis_cache(user_id, data,type)
+
+def add_redis_cache(user_id: str, data: str,type: str):
+    key = f"{user_id}:{type}"
+    existence = r.exists(key)
+    r.rpush(key,data)
+    if not existence:
+        r.expire(key,2)
     print(f"Cache updated for {user_id}: {key} -> {data}")
     
 def add_redis_media_counter(user_id: str):
@@ -41,6 +53,17 @@ def delete_redis_media_counter(user_id: str):
     print(f"Media counter cleared for {user_id}: {key}")
 
 def get_from_redis_cache(user_id: str, type: str):
+    key = f"{user_id}:{type}"
+    data = r.lrange(key,0,-1)
+    clear_redis_cache(user_id, type)
+    if data:
+        print(f"Cache hit for {user_id}: {key} -> {data}")
+        return data
+    else:
+        print(f"Cache miss for {user_id}: {key}")
+        return []
+
+def get_media_from_redis_cache(user_id: str, type: str):
     key = f"{user_id}:{type}"
     data = r.lrange(key,0,-1)
     delete_redis_media_counter(user_id)
