@@ -6,11 +6,14 @@ from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
 from dotenv import load_dotenv
 import asyncio
-import time
 #from agent.supervisor import supervisor_agent, Runner
 from agent.manager_agent import run_manager
 from data.handle_twilio import handle_image_urls,handle_audio_urls
-from data.caching.redis_client import add_media_to_cache,add_text_to_cache, get_from_redis_cache,get_media_from_redis_cache,clear_redis_cache,get_redis_media_counter
+from data.caching.redis_client import add_media_to_cache,add_text_to_cache, get_from_redis_cache,get_media_from_redis_cache,get_redis_media_counter
+from utils.audio_converter import transcribe_twilio_media
+#from agent.supervisor import supervisor_agent, Runner
+from agent.manager_agent import run_manager
+from data.handle_twilio import handle_image_urls, handle_audio_urls
 # Load environment variables from .env file
 load_dotenv()
 
@@ -82,6 +85,7 @@ async def istanbulMedic_agent(request: Request):
         form = await request.form()
         print("form", form)
         user_input = form.get("Body", "")
+        print("user_input", user_input)
         user_id = form.get("From", "unknown_user")
         image_urls = handle_image_urls(form)
         audio_urls = handle_audio_urls(form)
@@ -100,6 +104,11 @@ async def istanbulMedic_agent(request: Request):
             cached_texts = "".join(get_from_redis_cache(user_id, "text"))
             print("cached_texts", cached_texts)
             print("cached_images", cached_images)
+            print("cached_audios", cached_audios)
+
+            if cached_audios:
+                audio_transcript = transcribe_twilio_media(cached_audios[0])
+                cached_texts = f"[Voice Message]: {audio_transcript}"
 
             result = await run_manager(cached_texts, user_id, image_urls=cached_images)
 
@@ -108,13 +117,6 @@ async def istanbulMedic_agent(request: Request):
                 body=result,
                 to=user_id
             )
-            
-            # xml_response = f"""
-            # <Response>
-            #     <Message>{result}</Message>
-            # </Response>
-            # """
-            # return Response(content=xml_response.strip(), media_type="text/xml")
 
         else:
             return Response(content="<Response></Response>", media_type="text/xml")

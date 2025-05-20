@@ -12,7 +12,7 @@ image_agent = Agent(
     Your task is to decide how many hair grafts are needed for a hair transplant.
     Your answer must be maximum 1600 characters.
     """,
-    model="gpt-4.1",
+    model="gpt-4o",
 )
 
 async def run_agent(user_input: str,image_urls: list) -> str:
