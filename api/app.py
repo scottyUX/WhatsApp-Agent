@@ -101,7 +101,7 @@ async def istanbulMedic_agent(request: Request):
             print("cached_texts", cached_texts)
             print("cached_images", cached_images)
 
-            result = await run_manager(user_input, user_id, image_urls=cached_images)
+            result = await run_manager(cached_texts, user_id, image_urls=cached_images)
 
             xml_response = f"""
             <Response>
