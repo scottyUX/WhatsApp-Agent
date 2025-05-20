@@ -9,4 +9,5 @@ typer
 twilio
 openai-agents
 python-multipart
+upstash_redis
 elevenlabs

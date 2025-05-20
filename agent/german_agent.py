@@ -46,6 +46,9 @@ Bei Fragen zum Buchungsprozess:
   4. Reise & Behandlung
 
 Sei klar. Sei faktenbasiert. Setze immer das Vertrauen und die Sicherheit des Patienten an erste Stelle.
+
+Deine Antwort muss maximal 1600 Zeichen lang sein.
+
 """,
     model="gpt-4o",
     tools=[FileSearchTool(vector_store_ids=[VECTOR_STORE_ID])],

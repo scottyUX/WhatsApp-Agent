@@ -46,6 +46,8 @@ Si preguntan cómo comenzar:
   4. Viaje y procedimiento
 
 Sé claro. Sé preciso. Da prioridad a la confianza y tranquilidad del paciente.
+
+Tu respuesta debe tener un máximo de 1600 caracteres.
 """,
     model="gpt-4o",
     tools=[FileSearchTool(vector_store_ids=[VECTOR_STORE_ID])],

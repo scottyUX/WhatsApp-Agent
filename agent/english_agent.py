@@ -46,6 +46,8 @@ When asked how to get started:
   4. Travel for procedure
 
 Be clear. Be factual. Always prioritize user trust and comfort.
+
+Your answer must be maximum 1600 characters.
 """,
     model="gpt-4o",
     tools=[FileSearchTool(vector_store_ids=[VECTOR_STORE_ID])],

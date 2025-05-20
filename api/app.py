@@ -1,13 +1,15 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, BackgroundTasks
 from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
 from dotenv import load_dotenv
 import asyncio
-import requests
-import base64
+#from agent.supervisor import supervisor_agent, Runner
+from agent.manager_agent import run_manager
+from data.handle_twilio import handle_image_urls,handle_audio_urls
+from data.caching.redis_client import add_media_to_cache,add_text_to_cache, get_from_redis_cache,get_media_from_redis_cache,get_redis_media_counter
 from utils.audio_converter import transcribe_twilio_media
 #from agent.supervisor import supervisor_agent, Runner
 from agent.manager_agent import run_manager
@@ -20,7 +22,6 @@ account_sid = os.getenv("TWILIO_ACCOUNT_SID")
 auth_token = os.getenv("TWILIO_AUTH_TOKEN")
 client = Client(account_sid, auth_token)
 print("client", client)
-user_tasks = {}
 
 app = FastAPI()
 
@@ -88,22 +89,37 @@ async def istanbulMedic_agent(request: Request):
         user_id = form.get("From", "unknown_user")
         image_urls = handle_image_urls(form)
         audio_urls = handle_audio_urls(form)
-        if audio_urls:
-            audio_transcript = transcribe_twilio_media(audio_urls[0])
-            user_input = f"[Voice Message]: {audio_transcript}"
-        print("image_urls", image_urls)
-        print("audio_urls", audio_urls)
-        print("user_input", user_input)
-        print(f"📩 WhatsApp message from {user_id}: {user_input}")
+
+        add_media_to_cache(user_id, image_urls, "image")
+        add_media_to_cache(user_id, audio_urls, "audio")
+        add_text_to_cache(user_id, [user_input], "text")
+        media_count_old = get_redis_media_counter(user_id)
         
-        result = await run_manager(user_input, user_id,image_urls=image_urls)
+        await asyncio.sleep(2)
+        media_count_new = get_redis_media_counter(user_id)
         
-        xml_response = f"""
-        <Response>
-            <Message>{result}</Message>
-        </Response>
-        """
-        return Response(content=xml_response.strip(), media_type="text/xml")
+        if media_count_new == media_count_old:
+            cached_images = get_media_from_redis_cache(user_id, "image")
+            cached_audios = get_media_from_redis_cache(user_id, "audio")
+            cached_texts = "".join(get_from_redis_cache(user_id, "text"))
+            print("cached_texts", cached_texts)
+            print("cached_images", cached_images)
+            print("cached_audios", cached_audios)
+
+            if cached_audios:
+                audio_transcript = transcribe_twilio_media(cached_audios[0])
+                cached_texts = f"[Voice Message]: {audio_transcript}"
+
+            result = await run_manager(cached_texts, user_id, image_urls=cached_images)
+
+            message = client.messages.create(
+                from_='whatsapp:+14155238886',
+                body=result,
+                to=user_id
+            )
+
+        else:
+            return Response(content="<Response></Response>", media_type="text/xml")
 
     except Exception as e:
         print(f"❌ Webhook error: {e}")
