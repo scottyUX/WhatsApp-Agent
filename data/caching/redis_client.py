@@ -23,6 +23,8 @@ def add_redis_cache(user_id: str, data: str,type: str):
 def get_from_redis_cache(user_id: str, type: str):
     key = f"{user_id}:{type}"
     data = r.lrange(key,0,-1)
+    clear_redis_cache(user_id, "image")
+    clear_redis_cache(user_id, "audio")
     if data:
         print(f"Cache hit for {user_id}: {key} -> {data}")
         return data

@@ -95,9 +95,6 @@ async def istanbulMedic_agent(request: Request):
 
         result = await run_manager(user_input, user_id, image_urls=cached_images)
 
-        clear_redis_cache(user_id, "image")
-        clear_redis_cache(user_id, "audio")
-
         xml_response = f"""
         <Response>
             <Message>{result}</Message>
