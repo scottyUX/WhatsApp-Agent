@@ -10,7 +10,7 @@ import time
 #from agent.supervisor import supervisor_agent, Runner
 from agent.manager_agent import run_manager
 from data.handle_twilio import handle_image_urls,handle_audio_urls
-from data.caching.redis_client import add_list_to_cache, get_from_redis_cache
+from data.caching.redis_client import add_list_to_cache, get_from_redis_cache,clear_redis_cache
 # Load environment variables from .env file
 load_dotenv()
 
@@ -93,13 +93,10 @@ async def istanbulMedic_agent(request: Request):
         cached_images = get_from_redis_cache(user_id, "image")
         cached_audios = get_from_redis_cache(user_id, "audio")
 
-        combined_images = [img for img in cached_images]
-        combined_audios = [audio for audio in cached_audios]
+        result = await run_manager(user_input, user_id, image_urls=cached_images)
 
-        print(f"🖼️ Images: {combined_images}")
-        print(f"🎵 Audio: {combined_audios}")
-
-        result = await run_manager(user_input, user_id, image_urls=combined_images)
+        clear_redis_cache(user_id, "image")
+        clear_redis_cache(user_id, "audio")
 
         xml_response = f"""
         <Response>

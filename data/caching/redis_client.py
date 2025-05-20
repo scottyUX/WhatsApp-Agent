@@ -30,6 +30,11 @@ def get_from_redis_cache(user_id: str, type: str):
         print(f"Cache miss for {user_id}: {key}")
         return []
 
+def clear_redis_cache(user_id: str, type: str):
+    key = f"{user_id}:{type}"
+    r.delete(key)
+    print(f"Cache cleared for {user_id}: {key}")
+
 if __name__ == "__main__":
     # Example usage
     user_id = "test_user"
