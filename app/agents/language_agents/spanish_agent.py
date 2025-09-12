@@ -1,13 +1,5 @@
-# =============================
-# agent/spanish_agent.py
-# =============================
-
-from dotenv import load_dotenv
-load_dotenv()
 from agents import Agent, ModelSettings, FileSearchTool, Runner
-import os
-
-VECTOR_STORE_ID = os.getenv("VECTOR_STORE_ES")
+from app.config.settings import settings
 
 agent = Agent(
     name="SpanishAgent",
@@ -48,7 +40,7 @@ Si preguntan cómo comenzar:
 Sé claro. Sé preciso. Da prioridad a la confianza y tranquilidad del paciente.
 """,
     model="gpt-4o",
-    tools=[FileSearchTool(vector_store_ids=[VECTOR_STORE_ID])],
+    tools=[FileSearchTool(vector_store_ids=[settings.VECTOR_STORE_ES])],
 )
 
 async def run_agent(user_input: str) -> str:
