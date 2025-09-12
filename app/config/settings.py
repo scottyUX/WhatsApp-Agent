@@ -23,7 +23,7 @@ class Settings:
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     
     WEBHOOK_VERIFY_TOKEN: str = os.getenv("WEBHOOK_VERIFY_TOKEN")
-    TEST_PHONE_NUMBERS: List[str] = os.getenv("TEST_PHONE_NUMBERS", "").split(",")
+    TEST_PHONE_NUMBERS: List[str] = [num.strip() for num in os.getenv("TEST_PHONE_NUMBERS", "").split(",") if num.strip()]
     
     def validate(self):
         required_vars = [
