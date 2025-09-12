@@ -49,7 +49,7 @@ VECTOR_STORE_ES=your_spanish_vector_store_id
 ELEVENLABS_API_KEY=your_elevenlabs_key
 
 # Testing
-TEST_PHONE_NUMBER=whatsapp:+1234567890
+TEST_PHONE_NUMBERS=whatsapp:+1234567890,whatsapp:+0987654321
 ```
 
 ## Run

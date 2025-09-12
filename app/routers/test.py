@@ -35,15 +35,17 @@ async def test_agent():
         """
         return Response(content=error_response.strip(), media_type="text/xml")
 
+
 @router.get("/message")
 async def test_send_message():
     """Test sending a WhatsApp message"""
     try:
-        message_sid = twilio_service.send_message(
-            to=settings.TEST_PHONE_NUMBER,
-            body='Greetings from Istanbul Medic!',
-            media_url='https://raw.githubusercontent.com/dianephan/flask_upload_photos/main/UPLOADS/DRAW_THE_OWL_MEME.png'
-        )
+        for test_number in settings.TEST_PHONE_NUMBERS:
+            message_sid = twilio_service.send_message(
+                to=test_number,
+                body='Greetings from Istanbul Medic!',
+                media_url='https://raw.githubusercontent.com/dianephan/flask_upload_photos/main/UPLOADS/DRAW_THE_OWL_MEME.png'
+            )
         return {"sid": message_sid, "status": "sent"}
     except Exception as e:
         return {"error": str(e)}
