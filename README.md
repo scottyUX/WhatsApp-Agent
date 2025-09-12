@@ -18,9 +18,10 @@ A multilingual medical tourism assistant for IstanbulMedic that handles WhatsApp
    cd WhatsApp-Agent
    ```
 
-2. **Install dependencies**
+2. **Create Virtual Environment & Install dependencies**
    ```bash
-   cd app
+   python -m venv venv
+   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
    pip install -r requirements.txt
    ```
 
