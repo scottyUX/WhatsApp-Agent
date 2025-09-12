@@ -1,4 +1,5 @@
 import os
+from typing import List
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -22,8 +23,7 @@ class Settings:
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     
     WEBHOOK_VERIFY_TOKEN: str = os.getenv("WEBHOOK_VERIFY_TOKEN")
-    TEST_PHONE_NUMBERS: str = os.getenv("TEST_PHONE_NUMBERS", "")
-    TEST_PHONE_NUMBER: str = os.getenv("TEST_PHONE_NUMBER", "whatsapp:+1234567890")
+    TEST_PHONE_NUMBERS: List[str] = os.getenv("TEST_PHONE_NUMBERS", "").split(",")
     
     def validate(self):
         required_vars = [
