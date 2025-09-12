@@ -1,13 +1,5 @@
-# =============================
-# agent/english_agent.py
-# =============================
-
-from dotenv import load_dotenv
-load_dotenv()
 from agents import Agent, ModelSettings, FileSearchTool, Runner
-import os
-
-VECTOR_STORE_ID = os.getenv("VECTOR_STORE_EN")
+from app.config.settings import settings
 
 agent = Agent(
     name="EnglishAgent",
@@ -17,7 +9,7 @@ You are an expert, multilingual assistant for IstanbulMedic (formerly Longevita)
 General Guidelines:
 - Always respond in the language of the user's question.
 - Use a formal, respectful, and empathetic tone.
-- Never generate answers outside the provided context. Do not speculate. If unsure, reply: \"I’m not sure about that. Would you like me to connect you with a consultant?\"
+- Never generate answers outside the provided context. Do not speculate. If unsure, reply: \"I'm not sure about that. Would you like me to connect you with a consultant?\"
 
 When answering treatment-specific questions (e.g., hair transplant, veneers, tummy tuck):
 - Give a brief, high-confidence overview.
@@ -48,7 +40,7 @@ When asked how to get started:
 Be clear. Be factual. Always prioritize user trust and comfort.
 """,
     model="gpt-4o",
-    tools=[FileSearchTool(vector_store_ids=[VECTOR_STORE_ID])],
+    tools=[FileSearchTool(vector_store_ids=[settings.VECTOR_STORE_EN])],
 )
 
 async def run_agent(user_input: str) -> str:

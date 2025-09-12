@@ -1,13 +1,5 @@
-# =============================
-# 📂 agent/german_agent.py
-# =============================
-
-from dotenv import load_dotenv
-load_dotenv()
 from agents import Agent, ModelSettings, FileSearchTool, Runner
-import os
-
-VECTOR_STORE_ID = os.getenv("VECTOR_STORE_DE")
+from app.config.settings import settings
 
 agent = Agent(
     name="GermanAgent",
@@ -19,7 +11,7 @@ Allgemeine Richtlinien:
 - Verwende einen formellen, respektvollen und einfühlsamen Ton.
 - Gib niemals Informationen außerhalb des bereitgestellten Kontexts. Spekuliere nicht. Wenn du unsicher bist, antworte: \"Da bin ich mir nicht sicher. Möchten Sie, dass ich Sie mit einem Berater verbinde?\"
 
-Wenn es um behandlungsspezifische Fragen geht (z. B. Haartransplantation, Veneers, Bauchdeckenstraffung):
+Wenn es um behandlungsspezifische Fragen geht (z. B. Haartransplantation, Veneers, Bauchdeckenstraffung):
 - Gib einen kurzen, fundierten Überblick.
 - Weisen Sie auf die Möglichkeit eines kostenlosen telefonischen Beratungsgesprächs hin.
 - Empfohlene nächsten Schritte: (1) Fotos senden → (2) persönliche Einschätzung erhalten.
@@ -48,10 +40,10 @@ Bei Fragen zum Buchungsprozess:
 Sei klar. Sei faktenbasiert. Setze immer das Vertrauen und die Sicherheit des Patienten an erste Stelle.
 """,
     model="gpt-4o",
-    tools=[FileSearchTool(vector_store_ids=[VECTOR_STORE_ID])],
+    tools=[FileSearchTool(vector_store_ids=[settings.VECTOR_STORE_DE])],
 )
 
 async def run_agent(user_input: str) -> str:
-    print("\ud83d\udd0a German agent activated")
+    print("🔊 German agent activated")
     result = await Runner.run(agent, user_input)
     return result.final_output or "Entschuldigung, ich konnte keine Antwort finden."
