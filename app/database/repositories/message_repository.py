@@ -7,7 +7,7 @@ from app.database.entities import Message
 
 class MessageRepository:
     def __init__(self, db: Session):
-       self.db = db
+        self.db = db
 
     def create(self, user_id: Union[str, uuid.UUID], direction: str, body: Optional[str], media_url: Optional[str] = None) -> Message:
         # Convert string UUID to UUID object if needed
@@ -37,6 +37,6 @@ class MessageRepository:
     def get_recent_by_user(self, user_id: Union[str, uuid.UUID], limit: int = 10) -> List[Message]:
         # Convert string UUID to UUID object if needed
         if isinstance(user_id, str):
-          user_id = uuid.UUID(user_id)
+            user_id = uuid.UUID(user_id)
         
         return self.db.query(Message).filter(Message.user_id == user_id).order_by(Message.created_at.desc()).limit(limit).all()
