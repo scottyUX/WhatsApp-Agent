@@ -1,16 +1,14 @@
 from fastapi import APIRouter, HTTPException, Request, Response
-from app.agents.manager_agent import run_manager
 from app.models.message import TwilioWebhookData
-from app.utils.audio_converter import transcribe_twilio_media
+from app.config.rate_limits import limiter, RateLimitConfig
+from app.dependencies import MessageServiceDep
+
 
 router = APIRouter()
 
-@router.get("/")
-async def read_root():
-    return {"Hello": "World"}
-
 @router.post("/api/webhook")
-async def istanbulMedic_webhook(request: Request):
+@limiter.limit(RateLimitConfig.WEBHOOK)
+async def istanbulMedic_webhook(request: Request, message_service: MessageServiceDep):
     try:
         form = await request.form()
         webhook_data = TwilioWebhookData(form)
@@ -20,13 +18,13 @@ async def istanbulMedic_webhook(request: Request):
         image_urls = webhook_data.get_image_urls()
         audio_urls = webhook_data.get_audio_urls()
         
-        if audio_urls:
-            audio_transcript = transcribe_twilio_media(audio_urls[0])
-            user_input = f"[Voice Message]: {audio_transcript}"
-        
-        print(f"📩 WhatsApp message from {user_id}: {user_input}")
-        
-        result = await run_manager(user_input, user_id, image_urls=image_urls)
+        # Use the message service to handle the incoming message
+        result = await message_service.handle_incoming_message(
+            phone_number=user_id,
+            body=user_input,
+            image_urls=image_urls,
+            audio_urls=audio_urls
+        )
         
         xml_response = f"""
         <Response>
