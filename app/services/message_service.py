@@ -1,0 +1,66 @@
+from typing import List, Optional
+
+from app.services.history_service import HistoryService
+from app.agents.manager_agent import run_manager
+from app.utils.audio_converter import transcribe_twilio_media
+
+
+class MessageService:
+    def __init__(self, history_service: HistoryService):
+        self.history_service = history_service
+
+    async def handle_incoming_message(
+        self, 
+        phone_number: str,
+        body: Optional[str] = None,
+        image_urls: Optional[List[str]] = None,
+        audio_urls: Optional[List[str]] = None
+    ) -> str:
+        """
+        Handle an incoming message from WhatsApp webhook.
+        
+        Args:
+            phone_number: The sender's phone number
+            body: Text message body
+            image_urls: List of image URLs if any
+            audio_urls: List of audio URLs if any
+            
+        Returns:
+            Response message to send back
+        """
+        # Get or create user
+        user = self.history_service.get_or_create_user(phone_number)
+        
+        # Process audio if present
+        user_input = body or ""
+        media_url = None
+        
+        if audio_urls:
+            audio_transcript = transcribe_twilio_media(audio_urls[0])
+            user_input = f"[Voice Message]: {audio_transcript}"
+            media_url = audio_urls[0]
+        elif image_urls:
+            media_url = image_urls[0] if image_urls else None
+        
+        # Log the incoming message
+        self.history_service.log_incoming_message(
+            user_id=user.id,
+            body=user_input,
+            media_url=media_url
+        )
+        
+        # Get message history for context
+        message_history = self.history_service.get_message_history(user.id, limit=10)
+        
+        print(f"📩 WhatsApp message from {phone_number}: {user_input}")
+        
+        # Process the message through the agent manager
+        result = await run_manager(user_input, phone_number, image_urls=image_urls or [])
+        
+        # Log the outgoing response
+        self.history_service.log_outgoing_message(
+            user_id=user.id,
+            body=result
+        )
+        
+        return result

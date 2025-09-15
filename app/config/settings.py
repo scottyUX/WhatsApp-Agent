@@ -11,6 +11,8 @@ class Settings:
     TWILIO_AUTH_TOKEN: str = os.getenv("TWILIO_AUTH_TOKEN") 
     TWILIO_PHONE_NUMBER: str = os.getenv("TWILIO_PHONE_NUMBER", "whatsapp:+14155238886")
     
+    DATABASE_URL: str = os.getenv("DATABASE_URL")
+
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
     
     VECTOR_STORE_EN: str = os.getenv("VECTOR_STORE_EN")
