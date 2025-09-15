@@ -10,3 +10,5 @@ twilio
 openai-agents
 python-multipart
 elevenlabs
+slowapi
+sqlalchemy

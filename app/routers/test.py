@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Response, Request
 from app.services.twilio_service import twilio_service
 from app.agents.manager_agent import run_manager
 from app.config.settings import settings
+from app.config.rate_limits import limiter, RateLimitConfig
 
 router = APIRouter(prefix="/test", tags=["testing"])
 
 @router.get("/agent")
-async def test_agent():
+@limiter.limit(RateLimitConfig.TEST)
+async def test_agent(request: Request):
     """Test endpoint with hardcoded values for development"""
     print("Testing agent with hardcoded values")
     try:
@@ -37,7 +39,8 @@ async def test_agent():
 
 
 @router.get("/message")
-async def test_send_message():
+@limiter.limit(RateLimitConfig.TEST)
+async def test_send_message(request: Request):
     """Test sending a WhatsApp message"""
     try:
         for test_number in settings.TEST_PHONE_NUMBERS:
