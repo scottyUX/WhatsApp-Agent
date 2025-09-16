@@ -3,11 +3,24 @@ from typing import List, Optional
 from app.services.history_service import HistoryService
 from app.agents.manager_agent import run_manager
 from app.utils.audio_converter import transcribe_twilio_media
+from app.database.entities import Message
 
 
 class MessageService:
     def __init__(self, history_service: HistoryService):
         self.history_service = history_service
+
+    def format_message_history(self, messages: List[Message]) -> str:
+        """Format message history for context."""
+        formatted = []
+        for msg in messages:
+            direction = "User" if msg.direction == "incoming" else "Agent"
+            body = msg.body or ""
+            if msg.media_url:
+                body += f" [Media: {msg.media_url}]"
+            message_information = f"[{direction} | {msg.created_at.strftime('%Y-%m-%d %H:%M:%S')}]: {body}"
+            formatted.append(message_information)
+        return "\n".join(formatted)
 
     async def handle_incoming_message(
         self, 
@@ -43,7 +56,7 @@ class MessageService:
             media_url = image_urls[0] if image_urls else None
         
         # Log the incoming message
-        self.history_service.log_incoming_message(
+        current_message = self.history_service.log_incoming_message(
             user_id=user.id,
             body=user_input,
             media_url=media_url
@@ -51,11 +64,13 @@ class MessageService:
         
         # Get message history for context
         message_history = self.history_service.get_message_history(user.id, limit=10)
+        message_history.append(current_message)
+        formatted_history = self.format_message_history(message_history)
         
         print(f"📩 WhatsApp message from {phone_number}: {user_input}")
         
         # Process the message through the agent manager
-        result = await run_manager(user_input, phone_number, image_urls=image_urls or [])
+        result = await run_manager(formatted_history, phone_number, image_urls=image_urls or [])
         
         # Log the outgoing response
         self.history_service.log_outgoing_message(
