@@ -12,3 +12,4 @@ python-multipart
 elevenlabs
 slowapi
 sqlalchemy
+psycopg2-binary
