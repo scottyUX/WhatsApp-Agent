@@ -9,6 +9,17 @@ __pycache__/
 
 # Environment variables and config
 .env
+.env.local
+.env.production
+
+# Google Calendar API credentials
+credentials.json
+token.json
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
 
 # System files
 .DS_Store
