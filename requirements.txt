@@ -12,3 +12,9 @@ python-multipart
 elevenlabs
 slowapi
 sqlalchemy
+# Add these to requirements.txt:
+google-api-python-client>=2.0.0
+google-auth>=2.0.0
+google-auth-oauthlib>=1.0.0
+hubspot-api-client>=8.0.0
+pytz>=2023.3  # for timezone handling
