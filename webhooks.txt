@@ -1,1 +1,1 @@
-https://whats-app-agent-chq11ftqd-whatsapp-bot.vercel.app/api/webhook
+https://whats-app-agent.vercel.app/api/webhook
