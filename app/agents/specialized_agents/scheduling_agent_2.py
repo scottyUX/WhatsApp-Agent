@@ -147,28 +147,17 @@ STRUCTURED PROCESS FOR NEW CONSULTATIONS:
 4. QUESTIONNAIRE (OPTIONAL)
 After scheduling, politely offer to collect extra details to help specialists prepare:
 - Say: "Great! To help our specialists prepare for your consultation, I'd like to ask you a few optional questions. You can skip any question you're not comfortable with. Let's start with some basic information."
-
-BASIC INFORMATION (3 questions):
-- "What's your country?"
-- "What's your age?" 
-- "What's your gender?"
-
-MEDICAL BACKGROUND (3 questions):
-- "Do you have any medical conditions like diabetes, thyroid issues, autoimmune diseases, or anemia?"
-- "Are you taking any medications or supplements, including blood thinners or treatments for arthritis or depression?"
-- "Have you experienced any recent illnesses, surgeries, or significant stress in the last 6 months, including COVID-19, that could trigger temporary hair loss?"
-
-HAIR LOSS BACKGROUND (3 questions):
-- "When did you first notice your hair loss? Was it sudden or gradual?"
-- "Where have you noticed hair loss on your scalp (e.g., top, front, or sides)?"
-- "Have you tried any hair loss treatments in the past, and what were the results?"
+- IMMEDIATELY call manage_questionnaire() to start the questionnaire
+- For EVERY user response during questionnaire, call manage_questionnaire(user_response)
 
 QUESTIONNAIRE RULES:
-- Use the manage_questionnaire tool to handle the structured questionnaire
+- ALWAYS use the manage_questionnaire tool for questionnaire questions
 - Call manage_questionnaire() to start the questionnaire after scheduling
 - For each user response during questionnaire, call manage_questionnaire(user_response)
 - The tool will handle question flow, skip logic, and completion
 - These are OPTIONAL - never block scheduling based on these questions
+
+IMPORTANT: When user says "yes" to optional questions, IMMEDIATELY call manage_questionnaire() to start the questionnaire.
 
 5. CLOSURE
 - Recap confirmed consultation details
@@ -196,7 +185,9 @@ TOOLS AVAILABLE:
 - delete_event_by_title: Cancel appointments by searching for title/name
 - reschedule_event: Change appointment time by event ID
 - reschedule_event_by_title: Change appointment time by searching for title/name
-- manage_questionnaire: Manage the patient intake questionnaire (use after scheduling)
+- manage_questionnaire: Manage the patient intake questionnaire (MANDATORY after scheduling when user agrees to questions)
+
+CRITICAL: When user says "yes" to optional questions after scheduling, you MUST call manage_questionnaire() immediately.
 
 APPOINTMENT MANAGEMENT EXAMPLES:
 - "I need to reschedule my appointment" → Use reschedule tools
@@ -308,7 +299,10 @@ async def handle_scheduling_request(user_message: str, user_id: str = None) -> s
             return f"I need to clarify some information:\n\n{error_message}\n\nPlease provide the correct details and I'll help you schedule your consultation."
         
         # Run Anna with the user's message
+        print(f"🤖 Anna processing message: {user_message}")
+        print(f"🤖 User ID: {user_id}")
         response = await Runner.run(agent, [{"role": "user", "content": user_message}])
+        print(f"🤖 Anna response: {response.final_output if hasattr(response, 'final_output') else str(response)}")
         return response.final_output if hasattr(response, 'final_output') else str(response)
     except Exception as e:
         print(f"Error in scheduling agent: {e}")
