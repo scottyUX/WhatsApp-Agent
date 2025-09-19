@@ -43,7 +43,9 @@ Sei klar. Sei faktenbasiert. Setze immer das Vertrauen und die Sicherheit des Pa
     tools=[FileSearchTool(vector_store_ids=[settings.VECTOR_STORE_DE])],
 )
 
-async def run_agent(user_input: str) -> str:
+async def run_agent(user_input: str, message_history: str = None) -> str:
     print("🔊 German agent activated")
-    result = await Runner.run(agent, user_input)
+    # Use message history if available, otherwise just user input
+    context = message_history if message_history else user_input
+    result = await Runner.run(agent, context)
     return result.final_output or "Entschuldigung, ich konnte keine Antwort finden."

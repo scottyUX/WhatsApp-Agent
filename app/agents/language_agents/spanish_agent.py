@@ -43,7 +43,9 @@ Sé claro. Sé preciso. Da prioridad a la confianza y tranquilidad del paciente.
     tools=[FileSearchTool(vector_store_ids=[settings.VECTOR_STORE_ES])],
 )
 
-async def run_agent(user_input: str) -> str:
+async def run_agent(user_input: str, message_history: str = None) -> str:
     print("Spanish agent activated")
-    result = await Runner.run(agent, user_input)
+    # Use message history if available, otherwise just user input
+    context = message_history if message_history else user_input
+    result = await Runner.run(agent, context)
     return result.final_output or "Lo siento, no pude encontrar una respuesta en español."

@@ -43,7 +43,9 @@ Be clear. Be factual. Always prioritize user trust and comfort.
     tools=[FileSearchTool(vector_store_ids=[settings.VECTOR_STORE_EN])],
 )
 
-async def run_agent(user_input: str) -> str:
+async def run_agent(user_input: str, message_history: str = None) -> str:
     print("🗣️ English agent activated")
-    result = await Runner.run(agent, user_input)
+    # Use message history if available, otherwise just user input
+    context = message_history if message_history else user_input
+    result = await Runner.run(agent, context)
     return result.final_output or "Sorry, I couldn't find an English answer."

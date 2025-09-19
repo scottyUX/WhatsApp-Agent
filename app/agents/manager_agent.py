@@ -27,14 +27,19 @@ async def detect_scheduling_intent(message: str) -> bool:
     
     try:
         response = await openai_service.get_completion(intent_prompt)
-        return response.strip().upper() == "YES"
+        print(f"🔍 OpenAI intent detection response: {response}")
+        result = response.strip().upper() == "YES"
+        print(f"🔍 Intent detection result: {result}")
+        return result
     except Exception as e:
         print(f"Error detecting scheduling intent: {e}")
         # Fallback to keyword-based detection
         scheduling_keywords = ["schedule", "book", "appointment", "consultation", "meeting", "available", "time", "date"]
-        return any(keyword in message.lower() for keyword in scheduling_keywords)
+        fallback_result = any(keyword in message.lower() for keyword in scheduling_keywords)
+        print(f"🔍 Fallback keyword detection result: {fallback_result}")
+        return fallback_result
 
-async def run_manager(user_input: str, user_id: str, image_urls: list = []) -> str:
+async def run_manager(user_input: str, user_id: str, image_urls: list = [], message_history: str = None) -> str:
     print(f"Message from {user_id}: {user_input}")
 
     # Handle images first
@@ -42,7 +47,9 @@ async def run_manager(user_input: str, user_id: str, image_urls: list = []) -> s
         return await run_image_agent(user_input, image_urls)
     
     # Check for scheduling intent using AI
-    if await detect_scheduling_intent(user_input):
+    scheduling_intent = await detect_scheduling_intent(user_input)
+    print(f"🔍 Scheduling intent detection result: {scheduling_intent}")
+    if scheduling_intent:
         print("Scheduling intent detected - routing to Anna")
         return await handle_scheduling_request(user_input, user_id)
     
@@ -51,8 +58,8 @@ async def run_manager(user_input: str, user_id: str, image_urls: list = []) -> s
     print(f"Detected language: {lang}")
 
     if lang == "de":
-        return await run_german_agent(user_input)
+        return await run_german_agent(user_input, message_history)
     elif lang == "es":
-        return await run_spanish_agent(user_input)
+        return await run_spanish_agent(user_input, message_history)
     else:
-        return await run_english_agent(user_input)
+        return await run_english_agent(user_input, message_history)

@@ -70,7 +70,8 @@ class MessageService:
         print(f"📩 WhatsApp message from {phone_number}: {user_input}")
         
         # Process the message through the agent manager
-        result = await run_manager(formatted_history, phone_number, image_urls=image_urls or [])
+        # Pass only the current user input for intent detection, but keep history for context
+        result = await run_manager(user_input, phone_number, image_urls=image_urls or [], message_history=formatted_history)
         
         print(f"🤖 Agent response: {result}")
         print(f"🤖 Response type: {type(result)}")
