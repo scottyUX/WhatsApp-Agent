@@ -72,6 +72,10 @@ class MessageService:
         # Process the message through the agent manager
         result = await run_manager(formatted_history, phone_number, image_urls=image_urls or [])
         
+        print(f"🤖 Agent response: {result}")
+        print(f"🤖 Response type: {type(result)}")
+        print(f"🤖 Response length: {len(str(result)) if result else 0}")
+        
         # Log the outgoing response
         self.history_service.log_outgoing_message(
             user_id=user.id,
