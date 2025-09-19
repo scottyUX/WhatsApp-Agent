@@ -11,13 +11,28 @@ SCOPES = [
 ]
 
 def get_calendar_service():
-    # Use service account credentials from environment variables
+    import json
+    
+    # Try JSON format first (for Vercel deployment)
+    service_account_json = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')
+    if service_account_json:
+        try:
+            info = json.loads(service_account_json)
+            creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+            delegated_user = os.getenv('GOOGLE_CALENDAR_ID')
+            if delegated_user:
+                creds = creds.with_subject(delegated_user)
+            return build('calendar', 'v3', credentials=creds)
+        except Exception as e:
+            print(f"Error parsing JSON credentials: {e}")
+    
+    # Fallback to individual environment variables (for local development)
     private_key = os.getenv('GOOGLE_PRIVATE_KEY')
     client_email = os.getenv('GOOGLE_CLIENT_EMAIL')
     project_id = os.getenv('GOOGLE_PROJECT_ID')
 
     if not private_key or not client_email:
-        raise RuntimeError('Missing Google service account credentials in environment (.env)')
+        raise RuntimeError('Missing Google service account credentials in environment')
 
     # Handle escaped newlines in private key
     private_key = private_key.replace('\\n', '\n')

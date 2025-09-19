@@ -42,3 +42,4 @@ build/
 .venv/
 agent/images/
 result.txt
+.vercel
