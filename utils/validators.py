@@ -220,38 +220,53 @@ class InputValidator:
         text = InputValidator.sanitize_input(text)
         extracted = {}
         
-        # Extract email
-        email_match = InputValidator.EMAIL_REGEX.search(text)
-        if email_match:
-            extracted['email'] = email_match.group().lower()
+        # Extract email - look for patterns like "email is xyz" or just standalone emails
+        email_patterns = [
+            r'email\s+is\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})',  # Valid email format
+            r'email:\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})',  # Valid email format
+            r'([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})',  # Valid email format
+            r'email\s+is\s+([a-zA-Z0-9._%+-]+)',  # Any text after "email is" (for validation)
+            r'email:\s*([a-zA-Z0-9._%+-]+)',  # Any text after "email:" (for validation)
+        ]
+        
+        for pattern in email_patterns:
+            email_match = re.search(pattern, text, re.IGNORECASE)
+            if email_match:
+                extracted['email'] = email_match.group(1).lower()
+                break
         
         # Extract phone number (prioritize international format)
         # Look for phone numbers with country codes first
         phone_patterns = [
-            r'\+[1-9]\d{6,14}',  # International format with +
-            r'\+1\s?\d{3}\s?\d{3}\s?\d{4}',  # US format with +1
-            r'\+44\s?\d{2,3}\s?\d{3,4}\s?\d{3,4}',  # UK format
-            r'\+33\s?\d{1,2}\s?\d{2}\s?\d{2}\s?\d{2}\s?\d{2}',  # French format
+            r'phone\s+number\s+is\s+(\+[1-9]\d{6,14})',  # "phone number is +1234567890"
+            r'phone\s+is\s+(\+[1-9]\d{6,14})',  # "phone is +1234567890"
+            r'phone:\s*(\+[1-9]\d{6,14})',  # "phone: +1234567890"
+            r'(\+[1-9]\d{6,14})',  # Just the number with country code
+            r'phone\s+number\s+is\s+(\d{10,15})',  # "phone number is 1234567890" (will add +1)
+            r'phone\s+is\s+(\d{10,15})',  # "phone is 1234567890" (will add +1)
+            r'phone:\s*(\d{10,15})',  # "phone: 1234567890" (will add +1)
+            r'phone\s+number\s+is\s+(\d+)',  # "phone number is 12345" (any digits)
+            r'phone\s+is\s+(\d+)',  # "phone is 12345" (any digits)
+            r'phone:\s*(\d+)',  # "phone: 12345" (any digits)
         ]
         
         phone_found = False
         for pattern in phone_patterns:
-            phone_match = re.search(pattern, text)
+            phone_match = re.search(pattern, text, re.IGNORECASE)
             if phone_match:
-                phone = phone_match.group().replace(' ', '')
+                phone = phone_match.group(1).replace(' ', '')
+                
+                # If it doesn't start with +, add +1 for US numbers
+                if not phone.startswith('+'):
+                    if len(phone) == 10:
+                        phone = f"+1{phone}"
+                    elif len(phone) == 11 and phone.startswith('1'):
+                        phone = f"+{phone}"
+                    # For other lengths, keep as is so validation can catch the error
+                
                 extracted['phone'] = phone
                 phone_found = True
                 break
-        
-        if not phone_found:
-            # Try US format without country code and add +1
-            phone_match = InputValidator.PHONE_REGEX.search(text)
-            if phone_match:
-                digits = re.sub(r'[^\d]', '', phone_match.group())
-                if len(digits) == 10:
-                    extracted['phone'] = f"+1{digits}"
-                elif len(digits) == 11 and digits.startswith('1'):
-                    extracted['phone'] = f"+{digits}"
         
         # Extract name (everything that's not email or phone)
         name_text = text
