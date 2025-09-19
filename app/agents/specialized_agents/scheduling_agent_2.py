@@ -11,6 +11,7 @@ from app.tools.google_calendar_tools import (
     reschedule_event_by_title,
     delete_event_by_title
 )
+from utils.validators import InputValidator, extract_contact_info
 
 # Load environment variables
 load_dotenv()
@@ -58,7 +59,7 @@ STRUCTURED PROCESS FOR NEW CONSULTATIONS:
 - Ask for consent to collect personal information
 
 2. BASIC INFORMATION (REQUIRED)
-- Collect minimum required fields: Full name, Phone number, Email address
+- Collect minimum required fields: Full name, Phone number (with country code), Email address
 - Confirm each detail back to ensure accuracy
 - These fields are MANDATORY - if user refuses, politely explain they're necessary to book
 - If refusal continues, escalate to human coordinator
@@ -156,12 +157,65 @@ async def run_agent():
         print("\n\nAnna: Thank you for considering Istanbul Medic. Take care!")
         return
 
+def validate_user_input(user_message: str) -> tuple[bool, str, dict]:
+    """
+    Validate user input and extract contact information
+    
+    Args:
+        user_message: User's message
+        
+    Returns:
+        Tuple of (is_valid, error_message, extracted_data)
+    """
+    try:
+        # Extract contact information from the message
+        extracted = extract_contact_info(user_message)
+        
+        if not extracted:
+            return True, "", {}  # No contact info to validate yet
+        
+        # Validate extracted information
+        validation_errors = []
+        
+        if 'name' in extracted:
+            is_valid, error = InputValidator.validate_name(extracted['name'])
+            if not is_valid:
+                validation_errors.append(f"Name: {error}")
+        
+        if 'email' in extracted:
+            is_valid, error = InputValidator.validate_email(extracted['email'])
+            if not is_valid:
+                validation_errors.append(f"Email: {error}")
+        
+        if 'phone' in extracted:
+            is_valid, error, formatted_phone = InputValidator.validate_phone(extracted['phone'])
+            if not is_valid:
+                validation_errors.append(f"Phone: {error}")
+            else:
+                extracted['phone'] = formatted_phone
+        
+        if validation_errors:
+            return False, "; ".join(validation_errors), {}
+        
+        return True, "", extracted
+        
+    except Exception as e:
+        print(f"Error validating user input: {e}")
+        return False, "I'm having trouble processing your information. Please try again.", {}
+
 async def handle_scheduling_request(user_message: str, user_id: str = None) -> str:
     """
     Handle scheduling requests from the manager agent.
     This function integrates Anna with your existing WhatsApp agent system.
     """
     try:
+        # Validate user input first
+        is_valid, error_message, extracted_data = validate_user_input(user_message)
+        
+        if not is_valid and extracted_data:
+            # Return validation error to user
+            return f"I need to clarify some information:\n\n{error_message}\n\nPlease provide the correct details and I'll help you schedule your consultation."
+        
         # Run Anna with the user's message
         response = await Runner.run(agent, [{"role": "user", "content": user_message}])
         return response.final_output if hasattr(response, 'final_output') else str(response)
