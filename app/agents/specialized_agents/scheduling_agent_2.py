@@ -285,7 +285,7 @@ def validate_user_input(user_message: str) -> tuple[bool, str, dict]:
         print(f"Error validating user input: {e}")
         return False, "I'm having trouble processing your information. Please try again.", {}
 
-async def handle_scheduling_request(user_message: str, user_id: str = None) -> str:
+async def handle_scheduling_request(user_message: str, user_id: str = None, message_history: str = None) -> str:
     """
     Handle scheduling requests from the manager agent.
     This function integrates Anna with your existing WhatsApp agent system.
@@ -298,10 +298,14 @@ async def handle_scheduling_request(user_message: str, user_id: str = None) -> s
             # Return validation error to user
             return f"I need to clarify some information:\n\n{error_message}\n\nPlease provide the correct details and I'll help you schedule your consultation."
         
-        # Run Anna with the user's message
+        # Run Anna with the user's message and conversation history
         print(f"🤖 Anna processing message: {user_message}")
         print(f"🤖 User ID: {user_id}")
-        response = await Runner.run(agent, [{"role": "user", "content": user_message}])
+        print(f"🤖 Message history: {message_history[:100] if message_history else 'None'}...")
+        
+        # Use message history if available, otherwise just the current message
+        context = message_history if message_history else user_message
+        response = await Runner.run(agent, [{"role": "user", "content": context}])
         print(f"🤖 Anna response: {response.final_output if hasattr(response, 'final_output') else str(response)}")
         return response.final_output if hasattr(response, 'final_output') else str(response)
     except Exception as e:

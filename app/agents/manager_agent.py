@@ -51,7 +51,7 @@ async def run_manager(user_input: str, user_id: str, image_urls: list = [], mess
     print(f"🔍 Scheduling intent detection result: {scheduling_intent}")
     if scheduling_intent:
         print("Scheduling intent detected - routing to Anna")
-        return await handle_scheduling_request(user_input, user_id)
+        return await handle_scheduling_request(user_input, user_id, message_history)
     
     # Detect language and route to appropriate language agent
     lang = openai_service.detect_language(user_input)
