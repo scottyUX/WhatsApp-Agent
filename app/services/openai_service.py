@@ -21,5 +21,23 @@ class OpenAIService:
         except Exception as e:
             print(f"Language detection failed: {e}")
             return "en"
+    
+    async def get_completion(self, prompt: str) -> str:
+        """Get completion from OpenAI for general prompts"""
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                max_tokens=100
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"OpenAI completion failed: {e}")
+            return "I'm sorry, I'm having trouble processing that request right now."
 
 openai_service = OpenAIService()
