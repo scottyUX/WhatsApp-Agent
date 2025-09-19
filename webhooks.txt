@@ -1,1 +1,1 @@
-https://istanbul-medic-agent.vercel.app/api/istanbulMedic-agent
+https://whats-app-agent-chq11ftqd-whatsapp-bot.vercel.app/api/webhook

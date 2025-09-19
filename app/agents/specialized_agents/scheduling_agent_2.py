@@ -22,8 +22,8 @@ os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 # Initialize questionnaire manager
 questionnaire_manager = create_questionnaire_manager()
 
-# Global conversation state for questionnaire
-conversation_state = None
+# Global conversation state for questionnaire - keyed by user_id
+conversation_states = {}
 
 # Get today's date for context
 now = datetime.datetime.now()
@@ -43,17 +43,20 @@ def manage_questionnaire(user_message: str, user_id: str = None) -> str:
     Returns:
         The next question to ask or completion message
     """
-    global conversation_state
+    global conversation_states
     
     try:
-        # Initialize conversation state if not exists
-        if conversation_state is None:
-            conversation_state = ConversationState(
-                user_id=user_id or "temp_user",
+        # Get or create conversation state for this user
+        user_key = user_id or "temp_user"
+        if user_key not in conversation_states:
+            conversation_states[user_key] = ConversationState(
+                user_id=user_key,
                 phone_number="",  # Will be filled when we have patient info
                 current_step=SchedulingStep.QUESTIONNAIRE,
                 patient_profile=PatientProfile()
             )
+        
+        conversation_state = conversation_states[user_key]
         
         # Check if questionnaire has started
         if not conversation_state.questionnaire_started_at:
@@ -62,12 +65,14 @@ def manage_questionnaire(user_message: str, user_id: str = None) -> str:
             return start_message
         
         # Process user response
+        print(f"🐛 Questionnaire Debug - User: {user_key}, Question ID: {conversation_state.current_question_id}, Message: {user_message}")
         success, response_message, next_action = questionnaire_manager.process_response(
             conversation_state.current_question_id,
             user_message,
             conversation_state,
             save_to_db=False
         )
+        print(f"🐛 Questionnaire Debug - Success: {success}, Next Action: {next_action}, Response: {response_message}")
         
         if next_action == "complete":
             # Questionnaire complete
@@ -78,6 +83,7 @@ def manage_questionnaire(user_message: str, user_id: str = None) -> str:
         else:
             # Get next question
             next_question = questionnaire_manager.get_next_question(conversation_state)
+            print(f"🐛 Questionnaire Debug - Next question: {next_question}")
             if next_question:
                 return next_question["text"]
             else:
