@@ -166,6 +166,9 @@ async def handle_scheduling_request(user_message: str, user_id: str = None) -> s
         response = await Runner.run(agent, [{"role": "user", "content": user_message}])
         return response.final_output if hasattr(response, 'final_output') else str(response)
     except Exception as e:
+        print(f"Error in scheduling agent: {e}")
+        import traceback
+        traceback.print_exc()
         return f"I apologize, but I'm experiencing some technical difficulties. Let me connect you with a human coordinator who can assist you with scheduling your consultation."
 
 # Note: Intent detection is handled by the Manager Agent
