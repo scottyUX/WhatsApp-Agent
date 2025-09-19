@@ -16,7 +16,18 @@ class SchedulingStep(Enum):
     BASIC_INFO = "basic_info"
     CONSULTATION_SCHEDULING = "consultation_scheduling"
     ADDITIONAL_INFO = "additional_info"
+    QUESTIONNAIRE = "questionnaire"  # New step for questionnaire
     CLOSURE = "closure"
+
+
+class QuestionnaireStep(Enum):
+    """Enumeration of steps in the questionnaire process."""
+    NOT_STARTED = "not_started"
+    BASIC_INFO = "basic_info"
+    MEDICAL_INFO = "medical_info"
+    HAIR_LOSS_INFO = "hair_loss_info"
+    COMPLETED = "completed"
+    SKIPPED = "skipped"
 
 
 class AppointmentStatus(Enum):
@@ -36,57 +47,24 @@ class Gender(Enum):
 
 
 @dataclass
-class PatientProfile:
-    """Patient profile containing all collected information."""
-    # Required fields
-    name: str = ""
-    phone: str = ""
-    email: str = ""
-    
-    # Optional fields
-    location: str = ""
-    age: Optional[int] = None
-    gender: Optional[Gender] = None
-    
-    # Medical background (optional)
-    chronic_illnesses: List[str] = field(default_factory=list)
-    current_medications: List[str] = field(default_factory=list)
-    allergies: List[str] = field(default_factory=list)
-    surgeries: List[str] = field(default_factory=list)
-    heart_conditions: List[str] = field(default_factory=list)
-    contagious_diseases: List[str] = field(default_factory=list)
-    
-    # Hair loss background (optional)
-    hair_loss_locations: List[str] = field(default_factory=list)  # crown, hairline, top
-    hair_loss_start: Optional[str] = None
-    family_history: Optional[bool] = None
-    previous_treatments: List[str] = field(default_factory=list)
-    
-    # Metadata
-    created_at: datetime = field(default_factory=datetime.now)
-    updated_at: datetime = field(default_factory=datetime.now)
+class QuestionnaireResponse:
+    """Individual questionnaire response with metadata."""
+    question_id: str
+    question_text: str
+    answer: Optional[str] = None
+    skipped: bool = False
+    clarification_attempted: bool = False
+    timestamp: datetime = field(default_factory=datetime.now)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API calls."""
         return {
-            "name": self.name,
-            "phone": self.phone,
-            "email": self.email,
-            "location": self.location,
-            "age": self.age,
-            "gender": self.gender.value if self.gender else None,
-            "chronic_illnesses": self.chronic_illnesses,
-            "current_medications": self.current_medications,
-            "allergies": self.allergies,
-            "surgeries": self.surgeries,
-            "heart_conditions": self.heart_conditions,
-            "contagious_diseases": self.contagious_diseases,
-            "hair_loss_locations": self.hair_loss_locations,
-            "hair_loss_start": self.hair_loss_start,
-            "family_history": self.family_history,
-            "previous_treatments": self.previous_treatments,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
+            "question_id": self.question_id,
+            "question_text": self.question_text,
+            "answer": self.answer,
+            "skipped": self.skipped,
+            "clarification_attempted": self.clarification_attempted,
+            "timestamp": self.timestamp.isoformat()
         }
 
 
@@ -117,6 +95,75 @@ class AppointmentRequest:
 
 
 @dataclass
+class PatientProfile:
+    """Patient profile containing all collected information."""
+    # Required fields
+    name: str = ""
+    phone: str = ""
+    email: str = ""
+    
+    # Optional fields
+    location: str = ""
+    age: Optional[int] = None
+    gender: Optional[Gender] = None
+    
+    # Medical background (optional)
+    chronic_illnesses: List[str] = field(default_factory=list)
+    current_medications: List[str] = field(default_factory=list)
+    allergies: List[str] = field(default_factory=list)
+    surgeries: List[str] = field(default_factory=list)
+    heart_conditions: List[str] = field(default_factory=list)
+    contagious_diseases: List[str] = field(default_factory=list)
+    
+    # Hair loss background (optional)
+    hair_loss_locations: List[str] = field(default_factory=list)  # crown, hairline, top
+    hair_loss_start: Optional[str] = None
+    family_history: Optional[bool] = None
+    previous_treatments: List[str] = field(default_factory=list)
+    
+    # Questionnaire tracking
+    questionnaire_responses: List[QuestionnaireResponse] = field(default_factory=list)
+    questionnaire_step: QuestionnaireStep = QuestionnaireStep.NOT_STARTED
+    questionnaire_started_at: Optional[datetime] = None
+    questionnaire_completed_at: Optional[datetime] = None
+    current_question_id: Optional[str] = None
+    
+    # Appointment request
+    appointment_request: Optional[AppointmentRequest] = None
+    
+    # Metadata
+    created_at: datetime = field(default_factory=datetime.now)
+    updated_at: datetime = field(default_factory=datetime.now)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for API calls."""
+        return {
+            "name": self.name,
+            "phone": self.phone,
+            "email": self.email,
+            "location": self.location,
+            "age": self.age,
+            "gender": self.gender.value if self.gender else None,
+            "chronic_illnesses": self.chronic_illnesses,
+            "current_medications": self.current_medications,
+            "allergies": self.allergies,
+            "surgeries": self.surgeries,
+            "heart_conditions": self.heart_conditions,
+            "contagious_diseases": self.contagious_diseases,
+            "hair_loss_locations": self.hair_loss_locations,
+            "hair_loss_start": self.hair_loss_start,
+            "family_history": self.family_history,
+            "previous_treatments": self.previous_treatments,
+            "questionnaire_responses": [response.to_dict() for response in self.questionnaire_responses],
+            "questionnaire_step": self.questionnaire_step.value,
+            "questionnaire_completed_at": self.questionnaire_completed_at.isoformat() if self.questionnaire_completed_at else None,
+            "appointment_request": self.appointment_request.to_dict() if self.appointment_request else None,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat()
+        }
+
+
+@dataclass
 class ConversationState:
     """Tracks the state of a conversation with a user."""
     user_id: str
@@ -125,6 +172,11 @@ class ConversationState:
     patient_profile: PatientProfile = field(default_factory=PatientProfile)
     appointment_request: AppointmentRequest = field(default_factory=AppointmentRequest)
     lead_id: Optional[str] = None
+    
+    # Questionnaire tracking
+    current_question_id: Optional[str] = None
+    questionnaire_started_at: Optional[datetime] = None
+    
     created_at: datetime = field(default_factory=datetime.now)
     last_activity: datetime = field(default_factory=datetime.now)
     
@@ -141,6 +193,8 @@ class ConversationState:
             "patient_profile": self.patient_profile.to_dict(),
             "appointment_request": self.appointment_request.to_dict(),
             "lead_id": self.lead_id,
+            "current_question_id": self.current_question_id,
+            "questionnaire_started_at": self.questionnaire_started_at.isoformat() if self.questionnaire_started_at else None,
             "created_at": self.created_at.isoformat(),
             "last_activity": self.last_activity.isoformat()
         }

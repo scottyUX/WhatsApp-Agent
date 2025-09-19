@@ -12,14 +12,80 @@ from app.tools.google_calendar_tools import (
     delete_event_by_title
 )
 from utils.validators import InputValidator, extract_contact_info
+from .questionnaire_manager import create_questionnaire_manager
+from .scheduling_models import ConversationState, PatientProfile, SchedulingStep
 
 # Load environment variables
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 
+# Initialize questionnaire manager
+questionnaire_manager = create_questionnaire_manager()
+
+# Global conversation state for questionnaire
+conversation_state = None
+
 # Get today's date for context
 now = datetime.datetime.now()
 today_str = now.strftime("%A, %B %d, %Y")
+
+# Questionnaire function tool for Anna
+@function_tool
+def manage_questionnaire(user_message: str, user_id: str = None) -> str:
+    """
+    Manage the patient intake questionnaire.
+    Use this when you need to ask the structured questionnaire questions after scheduling an appointment.
+    
+    Args:
+        user_message: The user's response to a questionnaire question
+        user_id: Optional user ID for tracking
+        
+    Returns:
+        The next question to ask or completion message
+    """
+    global conversation_state
+    
+    try:
+        # Initialize conversation state if not exists
+        if conversation_state is None:
+            conversation_state = ConversationState(
+                user_id=user_id or "temp_user",
+                phone_number="",  # Will be filled when we have patient info
+                current_step=SchedulingStep.QUESTIONNAIRE,
+                patient_profile=PatientProfile()
+            )
+        
+        # Check if questionnaire has started
+        if not conversation_state.questionnaire_started_at:
+            # Start questionnaire
+            start_message = questionnaire_manager.start_questionnaire(conversation_state)
+            return start_message
+        
+        # Process user response
+        success, response_message, next_action = questionnaire_manager.process_response(
+            conversation_state.current_question_id,
+            user_message,
+            conversation_state,
+            save_to_db=False
+        )
+        
+        if next_action == "complete":
+            # Questionnaire complete
+            return response_message
+        elif next_action == "clarify":
+            # Ask for clarification
+            return response_message
+        else:
+            # Get next question
+            next_question = questionnaire_manager.get_next_question(conversation_state)
+            if next_question:
+                return next_question["text"]
+            else:
+                return "Perfect! I've collected all the information. Our specialists will review this before your consultation."
+                
+    except Exception as e:
+        print(f"Error in questionnaire management: {e}")
+        return "I apologize, but I'm having trouble with the questionnaire. Let me continue with your consultation."
 
 # Define Anna - the compassionate consultation assistant
 agent = Agent(
@@ -72,13 +138,30 @@ STRUCTURED PROCESS FOR NEW CONSULTATIONS:
 - Confirm the time back to the user
 - Close with reassurance: "Excellent. I've scheduled your consultation for [day/time]. You'll receive a confirmation by email and SMS"
 
-4. ADDITIONAL INFORMATION (OPTIONAL)
+4. QUESTIONNAIRE (OPTIONAL)
 After scheduling, politely offer to collect extra details to help specialists prepare:
-- Location (city, country)
-- Age
-- Gender
-- Medical background (ask one at a time, allow "skip all")
-- Hair loss background (ask one at a time, allow "skip all")
+- Say: "Great! To help our specialists prepare for your consultation, I'd like to ask you a few optional questions. You can skip any question you're not comfortable with. Let's start with some basic information."
+
+BASIC INFORMATION (3 questions):
+- "What's your country?"
+- "What's your age?" 
+- "What's your gender?"
+
+MEDICAL BACKGROUND (3 questions):
+- "Do you have any medical conditions like diabetes, thyroid issues, autoimmune diseases, or anemia?"
+- "Are you taking any medications or supplements, including blood thinners or treatments for arthritis or depression?"
+- "Have you experienced any recent illnesses, surgeries, or significant stress in the last 6 months, including COVID-19, that could trigger temporary hair loss?"
+
+HAIR LOSS BACKGROUND (3 questions):
+- "When did you first notice your hair loss? Was it sudden or gradual?"
+- "Where have you noticed hair loss on your scalp (e.g., top, front, or sides)?"
+- "Have you tried any hair loss treatments in the past, and what were the results?"
+
+QUESTIONNAIRE RULES:
+- Use the manage_questionnaire tool to handle the structured questionnaire
+- Call manage_questionnaire() to start the questionnaire after scheduling
+- For each user response during questionnaire, call manage_questionnaire(user_response)
+- The tool will handle question flow, skip logic, and completion
 - These are OPTIONAL - never block scheduling based on these questions
 
 5. CLOSURE
@@ -107,6 +190,7 @@ TOOLS AVAILABLE:
 - delete_event_by_title: Cancel appointments by searching for title/name
 - reschedule_event: Change appointment time by event ID
 - reschedule_event_by_title: Change appointment time by searching for title/name
+- manage_questionnaire: Manage the patient intake questionnaire (use after scheduling)
 
 APPOINTMENT MANAGEMENT EXAMPLES:
 - "I need to reschedule my appointment" → Use reschedule tools
@@ -123,7 +207,8 @@ Remember: You are Anna, not a medical professional. Always be compassionate, pro
         delete_event,
         reschedule_event,
         reschedule_event_by_title,
-        delete_event_by_title
+        delete_event_by_title,
+        manage_questionnaire
     ]
 )
 

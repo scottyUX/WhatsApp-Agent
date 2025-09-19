@@ -16,6 +16,7 @@ from .scheduling_models import (
     CRMError,
     NotificationError
 )
+from .questionnaire_manager import create_questionnaire_manager
 from .scheduling_services import (
     GoogleCalendarService,
     HubSpotService,
@@ -36,6 +37,7 @@ class SchedulingService:
         self.calendar_service = GoogleCalendarService()
         self.crm_service = HubSpotService()
         self.notification_service = NotificationService()
+        self.questionnaire_manager = create_questionnaire_manager()
     
     async def detect_scheduling_intent(self, message: str, language: str = "en") -> bool:
         """
@@ -92,7 +94,7 @@ class SchedulingService:
         
         elif step == SchedulingStep.CONSULTATION_SCHEDULING:
             # Initialize appointment request if not exists
-            if not current_profile.appointment_request:
+            if current_profile.appointment_request is None:
                 current_profile.appointment_request = AppointmentRequest()
             
             if not current_profile.appointment_request.preferred_date:
@@ -101,21 +103,77 @@ class SchedulingService:
             
             elif not current_profile.appointment_request.preferred_time:
                 current_profile.appointment_request.preferred_time = message.strip()
-                return responses["scheduling_confirmation"], current_profile, SchedulingStep.ADDITIONAL_INFO
+                return responses["scheduling_confirmation"], current_profile, SchedulingStep.QUESTIONNAIRE
         
-        elif step == SchedulingStep.ADDITIONAL_INFO:
-            # Handle optional information collection
-            if any(word in message.lower() for word in ["skip", "no", "nein", "no", "pass"]):
-                return responses["closure_intro"], current_profile, SchedulingStep.CLOSURE
-            else:
-                # Collect optional info (simplified)
-                if not current_profile.location:
-                    current_profile.location = message.strip()
-                    return responses["age_request"], current_profile, SchedulingStep.ADDITIONAL_INFO
-                else:
-                    return responses["closure_intro"], current_profile, SchedulingStep.CLOSURE
+        elif step == SchedulingStep.QUESTIONNAIRE:
+            # Handle questionnaire using the questionnaire manager
+            return await self._handle_questionnaire(message, current_profile)
         
         return responses["error"], current_profile, step
+    
+    async def _handle_questionnaire(self, message: str, current_profile: PatientProfile) -> Tuple[str, PatientProfile, SchedulingStep]:
+        """
+        Handle questionnaire step using the questionnaire manager.
+        """
+        # Check if questionnaire has started
+        if not current_profile.questionnaire_step or current_profile.questionnaire_step.value == "not_started":
+            # Start questionnaire
+            from .scheduling_models import ConversationState
+            conversation_state = ConversationState(
+                user_id="temp_user",  # This would come from the actual user context
+                phone_number=current_profile.phone,
+                current_step=SchedulingStep.QUESTIONNAIRE,
+                patient_profile=current_profile
+            )
+            
+            start_message = self.questionnaire_manager.start_questionnaire(conversation_state)
+            # Update the profile with the questionnaire state
+            current_profile.questionnaire_step = conversation_state.patient_profile.questionnaire_step
+            current_profile.questionnaire_started_at = conversation_state.questionnaire_started_at
+            return start_message, current_profile, SchedulingStep.QUESTIONNAIRE
+        
+        # Process user response
+        from .scheduling_models import ConversationState
+        conversation_state = ConversationState(
+            user_id="temp_user",
+            phone_number=current_profile.phone,
+            current_step=SchedulingStep.QUESTIONNAIRE,
+            patient_profile=current_profile
+        )
+        
+        # Set the current question ID from the profile
+        conversation_state.current_question_id = getattr(current_profile, 'current_question_id', None)
+        
+        success, response_message, next_action = self.questionnaire_manager.process_response(
+            conversation_state.current_question_id,
+            message,
+            conversation_state,
+            save_to_db=False
+        )
+        
+        # Update the profile with any changes from the questionnaire manager
+        current_profile.questionnaire_responses = conversation_state.patient_profile.questionnaire_responses
+        current_profile.questionnaire_step = conversation_state.patient_profile.questionnaire_step
+        current_profile.questionnaire_completed_at = conversation_state.patient_profile.questionnaire_completed_at
+        current_profile.current_question_id = conversation_state.current_question_id
+        
+        if next_action == "complete":
+            # Questionnaire complete
+            return response_message, current_profile, SchedulingStep.CLOSURE
+        elif next_action == "clarify":
+            # Ask for clarification
+            return response_message, current_profile, SchedulingStep.QUESTIONNAIRE
+        else:
+            # Get next question
+            next_question = self.questionnaire_manager.get_next_question(conversation_state)
+            if next_question:
+                # Update conversation state with current question
+                conversation_state.current_question_id = next_question["id"]
+                current_profile.current_question_id = next_question["id"]
+                return next_question["text"], current_profile, SchedulingStep.QUESTIONNAIRE
+            else:
+                # No more questions, questionnaire complete
+                return "Perfect! I've collected all the information. Our specialists will review this before your consultation.", current_profile, SchedulingStep.CLOSURE
     
     async def book_appointment(self, patient_profile: PatientProfile) -> Dict[str, Any]:
         """
@@ -174,8 +232,6 @@ class SchedulingService:
             "scheduling_intro": "Excellent! Now let's find a convenient time for your consultation. What day works best for you?",
             "time_preference": "Would you prefer morning or afternoon?",
             "scheduling_confirmation": "Perfect! I've scheduled your consultation. You'll receive a confirmation by email and SMS with all the details.",
-            "age_request": "Thank you! What's your age? (This is optional - you can say 'skip' if you prefer not to share)",
-            "closure_intro": "Great! To help our specialists prepare, I'd like to ask a few optional questions about your medical background. You can skip any you're not comfortable with, or say 'skip all' to proceed.",
             "validation_error": "I need all three pieces of information to proceed. Let me start over. What's your full name?",
             "error": "I apologize, but I'm having trouble processing that. Could you please try again?"
         }
