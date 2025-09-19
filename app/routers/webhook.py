@@ -26,11 +26,16 @@ async def istanbulMedic_webhook(request: Request, message_service: MessageServic
             audio_urls=audio_urls
         )
         
+        print(f"📤 Webhook result: {result}")
+        print(f"📤 Result type: {type(result)}")
+        print(f"📤 Result length: {len(str(result)) if result else 0}")
+        
         xml_response = f"""
         <Response>
             <Message>{result}</Message>
         </Response>
         """
+        print(f"📤 XML response: {xml_response}")
         return Response(content=xml_response.strip(), media_type="text/xml")
 
     except Exception as e:
