@@ -30,18 +30,14 @@ async def istanbulMedic_webhook(request: Request, message_service: MessageServic
         print(f"📤 Result type: {type(result)}")
         print(f"📤 Result length: {len(str(result)) if result else 0}")
         
-        xml_response = f"""
-        <Response>
-            <Message>{result}</Message>
-        </Response>
-        """
+        # Escape the result for XML
+        import html
+        escaped_result = html.escape(str(result))
+        
+        xml_response = f"""<Response><Message>{escaped_result}</Message></Response>"""
         print(f"📤 XML response: {xml_response}")
-        return Response(content=xml_response.strip(), media_type="text/xml")
+        return Response(content=xml_response, media_type="text/xml")
 
     except Exception as e:
         print(f"❌ Webhook error: {e}")
-        return Response(content="""
-        <Response>
-            <Message>Sorry, an error occurred. Please try again.</Message>
-        </Response>
-        """.strip(), media_type="text/xml")
+        return Response(content="<Response><Message>Sorry, an error occurred. Please try again.</Message></Response>", media_type="text/xml")
