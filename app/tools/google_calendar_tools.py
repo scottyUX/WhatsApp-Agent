@@ -1,7 +1,5 @@
 from googleapiclient.discovery import build
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2 import service_account
 from agents import function_tool
 import datetime
 import os
@@ -13,17 +11,35 @@ SCOPES = [
 ]
 
 def get_calendar_service():
-    creds = None
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
+    # Use service account credentials from environment variables
+    private_key = os.getenv('GOOGLE_PRIVATE_KEY')
+    client_email = os.getenv('GOOGLE_CLIENT_EMAIL')
+    project_id = os.getenv('GOOGLE_PROJECT_ID')
+
+    if not private_key or not client_email:
+        raise RuntimeError('Missing Google service account credentials in environment (.env)')
+
+    # Handle escaped newlines in private key
+    private_key = private_key.replace('\\n', '\n')
+
+    info = {
+        "type": "service_account",
+        "project_id": project_id or "project",
+        "private_key_id": os.getenv('GOOGLE_PRIVATE_KEY_ID'),
+        "private_key": private_key,
+        "client_email": client_email,
+        "client_id": os.getenv('GOOGLE_CLIENT_ID'),
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": os.getenv('GOOGLE_CLIENT_X509_CERT_URL')
+    }
+
+    creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+    delegated_user = os.getenv('GOOGLE_CALENDAR_ID')
+    if delegated_user:
+        creds = creds.with_subject(delegated_user)
+
     return build('calendar', 'v3', credentials=creds)
 
 @function_tool
