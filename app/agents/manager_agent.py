@@ -4,6 +4,7 @@ from app.agents.language_agents.german_agent import run_agent as run_german_agen
 from app.agents.language_agents.spanish_agent import run_agent as run_spanish_agent
 from app.agents.specialized_agents.image_agent import run_agent as run_image_agent
 from app.agents.specialized_agents.scheduling_agent_2 import handle_scheduling_request
+from app.services.conversation_state_service import conversation_state_service, ConversationAgent
 
 async def detect_scheduling_intent(message: str) -> bool:
     """
@@ -42,8 +43,15 @@ async def detect_scheduling_intent(message: str) -> bool:
 async def run_manager(user_input: str, user_id: str, image_urls: list = [], message_history: str = None) -> str:
     print(f"Message from {user_id}: {user_input}")
 
+    # Check if Anna is already handling this conversation
+    if conversation_state_service.is_anna_handling_conversation(user_id):
+        print("🔄 Anna is already handling this conversation - routing directly to Anna")
+        conversation_state_service.update_conversation_activity(user_id)
+        return await handle_scheduling_request(user_input, user_id, message_history)
+
     # Handle images first
     if len(image_urls) > 0:
+        conversation_state_service.set_conversation_state(user_id, ConversationAgent.IMAGE)
         return await run_image_agent(user_input, image_urls)
     
     # Check for scheduling intent using AI
@@ -51,6 +59,8 @@ async def run_manager(user_input: str, user_id: str, image_urls: list = [], mess
     print(f"🔍 Scheduling intent detection result: {scheduling_intent}")
     if scheduling_intent:
         print("Scheduling intent detected - routing to Anna")
+        # Set conversation state to Anna
+        conversation_state_service.set_conversation_state(user_id, ConversationAgent.ANNA_SCHEDULING)
         return await handle_scheduling_request(user_input, user_id, message_history)
     
     # Detect language and route to appropriate language agent
@@ -58,8 +68,11 @@ async def run_manager(user_input: str, user_id: str, image_urls: list = [], mess
     print(f"Detected language: {lang}")
 
     if lang == "de":
+        conversation_state_service.set_conversation_state(user_id, ConversationAgent.GERMAN)
         return await run_german_agent(user_input, message_history)
     elif lang == "es":
+        conversation_state_service.set_conversation_state(user_id, ConversationAgent.SPANISH)
         return await run_spanish_agent(user_input, message_history)
     else:
+        conversation_state_service.set_conversation_state(user_id, ConversationAgent.ENGLISH)
         return await run_english_agent(user_input, message_history)

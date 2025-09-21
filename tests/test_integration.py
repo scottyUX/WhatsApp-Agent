@@ -17,8 +17,8 @@ class TestIntentDetectionIntegration:
     @pytest.mark.asyncio
     async def test_scheduling_intent_detection(self, mock_openai_response):
         """Test scheduling intent detection with OpenAI integration"""
-        with patch('app.agents.manager_agent.openai_client') as mock_client:
-            mock_client.chat.completions.create.return_value = mock_openai_response
+        with patch('app.services.openai_service.openai_service') as mock_service:
+            mock_service.get_completion.return_value = mock_openai_response
             
             # Test clear scheduling intent
             result = await detect_scheduling_intent("I'd like to schedule a consultation")
@@ -31,8 +31,8 @@ class TestIntentDetectionIntegration:
     @pytest.mark.asyncio
     async def test_manager_agent_routing(self, mock_openai_response):
         """Test manager agent routes correctly based on intent"""
-        with patch('app.agents.manager_agent.openai_client') as mock_client:
-            mock_client.chat.completions.create.return_value = mock_openai_response
+        with patch('app.services.openai_service.openai_service') as mock_service:
+            mock_service.get_completion.return_value = mock_openai_response
             
             # Test routing to scheduling agent
             response = await run_manager("I'd like to schedule a consultation", "test_user")
@@ -54,15 +54,17 @@ class TestQuestionnaireIntegration:
         
         # Start questionnaire
         result = manager.start_questionnaire(sample_conversation_state)
-        assert "questionnaire" in result.lower()
+        assert "questions" in result.lower() or "questionnaire" in result.lower()
         
         # Process first response
-        result = manager.process_response("United States", sample_conversation_state)
-        assert "next" in result.lower() or "age" in result.lower()
+        success, result, next_action = manager.process_response("basic_country", "United States", sample_conversation_state)
+        assert success
+        assert "move on" in result.lower() or "age" in result.lower()
         
         # Process second response
-        result = manager.process_response("35", sample_conversation_state)
-        assert "next" in result.lower() or "gender" in result.lower()
+        success, result, next_action = manager.process_response("basic_age", "35", sample_conversation_state)
+        assert success
+        assert "move on" in result.lower() or "gender" in result.lower()
     
     @pytest.mark.asyncio
     async def test_questionnaire_skip_integration(self, sample_conversation_state):
@@ -73,12 +75,14 @@ class TestQuestionnaireIntegration:
         manager.start_questionnaire(sample_conversation_state)
         
         # Skip first question
-        result = manager.process_response("skip", sample_conversation_state)
-        assert "next" in result.lower() or "moved on" in result.lower()
+        success, result, next_action = manager.process_response("basic_country", "skip", sample_conversation_state)
+        assert success
+        assert "move on" in result.lower()
         
         # Skip second question
-        result = manager.process_response("skip", sample_conversation_state)
-        assert "next" in result.lower() or "moved on" in result.lower()
+        success, result, next_action = manager.process_response("basic_age", "skip", sample_conversation_state)
+        assert success
+        assert "move on" in result.lower()
     
     @pytest.mark.asyncio
     async def test_questionnaire_completion_integration(self, sample_conversation_state):
@@ -89,21 +93,21 @@ class TestQuestionnaireIntegration:
         manager.start_questionnaire(sample_conversation_state)
         
         # Answer all questions
-        responses = [
-            "United States",  # country
-            "35",            # age
-            "Male",          # gender
-            "Diabetes",      # medical conditions
-            "Metformin",     # medications
-            "COVID-19",      # recent events
-            "2 years ago",   # hair loss onset
-            "Crown area",    # hair loss location
-            "Minoxidil"      # previous treatments
+        question_responses = [
+            ("basic_country", "United States"),  # country
+            ("basic_age", "35"),                # age
+            ("basic_gender", "Male"),           # gender
+            ("medical_conditions", "Diabetes"), # medical conditions
+            ("current_medications", "Metformin"), # medications
+            ("recent_events", "COVID-19"),      # recent events
+            ("hair_loss_onset", "2 years ago"), # hair loss onset
+            ("hair_loss_location", "Crown area"), # hair loss location
+            ("previous_treatments", "Minoxidil") # previous treatments
         ]
         
-        for response in responses:
-            result = manager.process_response(response, sample_conversation_state)
-            if "complete" in result.lower() or "finished" in result.lower():
+        for question_id, response in question_responses:
+            success, result, next_action = manager.process_response(question_id, response, sample_conversation_state)
+            if next_action == "complete" or "complete" in result.lower():
                 break
         
         # Check completion
@@ -117,8 +121,8 @@ class TestSchedulingAgentIntegration:
     @pytest.mark.asyncio
     async def test_anna_questionnaire_integration(self, mock_openai_response):
         """Test Anna's integration with questionnaire system"""
-        with patch('app.agents.specialized_agents.scheduling_agent_2.openai_client') as mock_client:
-            mock_client.chat.completions.create.return_value = mock_openai_response
+        with patch('app.services.openai_service.openai_service') as mock_service:
+            mock_service.get_completion.return_value = mock_openai_response
             
             # Test initial scheduling request
             response = await handle_scheduling_request("I'd like to schedule a consultation", "test_user")
@@ -131,8 +135,8 @@ class TestSchedulingAgentIntegration:
     @pytest.mark.asyncio
     async def test_conversation_state_persistence(self, mock_openai_response):
         """Test conversation state persistence across messages"""
-        with patch('app.agents.specialized_agents.scheduling_agent_2.openai_client') as mock_client:
-            mock_client.chat.completions.create.return_value = mock_openai_response
+        with patch('app.services.openai_service.openai_service') as mock_service:
+            mock_service.get_completion.return_value = mock_openai_response
             
             # First message
             response1 = await handle_scheduling_request("I'd like to schedule a consultation", "test_user")

@@ -14,6 +14,7 @@ from app.tools.google_calendar_tools import (
 from utils.validators import InputValidator, extract_contact_info
 from .questionnaire_manager import create_questionnaire_manager
 from .scheduling_models import ConversationState, PatientProfile, SchedulingStep
+from app.services.conversation_state_service import conversation_state_service, ConversationAgent
 
 # Load environment variables
 load_dotenv()
@@ -314,13 +315,67 @@ async def handle_scheduling_request(user_message: str, user_id: str = None, mess
         # Use message history if available, otherwise just the current message
         context = message_history if message_history else user_message
         response = await Runner.run(agent, [{"role": "user", "content": context}])
-        print(f"🤖 Anna response: {response.final_output if hasattr(response, 'final_output') else str(response)}")
-        return response.final_output if hasattr(response, 'final_output') else str(response)
+        
+        response_text = response.final_output if hasattr(response, 'final_output') else str(response)
+        print(f"🤖 Anna response: {response_text}")
+        
+        # Check if Anna has finished the conversation (appointment scheduled, questionnaire complete, etc.)
+        if _is_conversation_complete(response_text, user_message):
+            print("🏁 Anna conversation complete - clearing conversation state")
+            conversation_state_service.clear_conversation_state(user_id)
+        
+        return response_text
     except Exception as e:
         print(f"Error in scheduling agent: {e}")
         import traceback
         traceback.print_exc()
         return f"I apologize, but I'm experiencing some technical difficulties. Let me connect you with a human coordinator who can assist you with scheduling your consultation."
+
+def _is_conversation_complete(response_text: str, user_message: str) -> bool:
+    """
+    Check if Anna has finished the conversation.
+    This helps determine when to clear the conversation state.
+    """
+    response_lower = response_text.lower()
+    user_lower = user_message.lower()
+    
+    # Check for completion indicators in Anna's response
+    completion_phrases = [
+        "appointment has been scheduled",
+        "appointment is confirmed",
+        "consultation is booked",
+        "see you at",
+        "looking forward to meeting you",
+        "thank you for scheduling",
+        "appointment details",
+        "calendar invite",
+        "questionnaire complete",
+        "all information collected",
+        "specialists will review",
+        "consultation scheduled"
+    ]
+    
+    # Check for user saying goodbye or thanks
+    goodbye_phrases = [
+        "thank you",
+        "thanks",
+        "goodbye",
+        "bye",
+        "see you",
+        "perfect",
+        "great",
+        "sounds good"
+    ]
+    
+    # Check if Anna's response contains completion phrases
+    if any(phrase in response_lower for phrase in completion_phrases):
+        return True
+    
+    # Check if user is saying goodbye after a successful interaction
+    if any(phrase in user_lower for phrase in goodbye_phrases):
+        return True
+    
+    return False
 
 # Note: Intent detection is handled by the Manager Agent
 # This scheduling agent focuses solely on consultation scheduling

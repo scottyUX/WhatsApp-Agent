@@ -26,7 +26,7 @@ class QuestionnaireManager:
     """Manages the questionnaire flow and response processing."""
     
     def __init__(self):
-        self.question_categories = ["basic", "medical", "hair_loss"]
+        self.question_categories = ["basic_info", "medical_info", "hair_loss_info"]
         self.current_category_index = 0
     
     def get_next_question(self, conversation_state: ConversationState) -> Optional[Dict[str, Any]]:
@@ -138,7 +138,18 @@ class QuestionnaireManager:
     
     def is_questionnaire_complete(self, conversation_state: ConversationState) -> bool:
         """Check if questionnaire is complete."""
-        return conversation_state.patient_profile.questionnaire_step == QuestionnaireStep.COMPLETED
+        # Check if already marked as completed
+        if conversation_state.patient_profile.questionnaire_step == QuestionnaireStep.COMPLETED:
+            return True
+        
+        # Count how many questions have been answered
+        answered_questions = len(conversation_state.patient_profile.questionnaire_responses)
+        total_questions = len(ALL_QUESTIONS)  # Should be 9
+        
+        # Also check if we've gone through all categories
+        categories_complete = self.current_category_index >= len(self.question_categories)
+        
+        return answered_questions >= total_questions or categories_complete
     
     def save_responses_to_database(self, conversation_state: ConversationState) -> bool:
         """
@@ -187,6 +198,8 @@ class QuestionnaireManager:
         # Find first unanswered question
         for question in questions:
             if not self._get_existing_response(question.id, conversation_state):
+                # Set the current question ID
+                conversation_state.current_question_id = question.id
                 return self._format_question(question)
         
         return None
@@ -288,7 +301,7 @@ class QuestionnaireManager:
             conversation_state.patient_profile.questionnaire_step = self._get_next_questionnaire_step()
         
         # Check if questionnaire is complete
-        if self._is_questionnaire_complete(conversation_state):
+        if self.is_questionnaire_complete(conversation_state):
             # Save all responses to database
             self.save_responses_to_database(conversation_state)
             conversation_state.patient_profile.questionnaire_step = QuestionnaireStep.COMPLETED
@@ -310,10 +323,30 @@ class QuestionnaireManager:
     def _should_move_to_next_category(self, current_category: str, conversation_state: ConversationState) -> bool:
         """Check if we should move to the next category."""
         questions = get_questions_by_category(current_category)
-        answered_questions = [r.question_id for r in conversation_state.patient_profile.questionnaire_responses 
-                            if r.question_id in [q.id for q in questions]]
+        current_question_id = conversation_state.current_question_id
         
-        return len(answered_questions) >= len(questions)
+        if not current_question_id:
+            return False
+            
+        # Find the current question index
+        current_question_index = -1
+        for i, question in enumerate(questions):
+            if question.id == current_question_id:
+                current_question_index = i
+                break
+        
+        # Move to next category if this is the last question in the current category
+        is_last_question = current_question_index == len(questions) - 1
+        
+        # Also check if all questions in this category have been answered
+        answered_in_category = 0
+        for question in questions:
+            if self._get_existing_response(question.id, conversation_state):
+                answered_in_category += 1
+        
+        all_answered_in_category = answered_in_category >= len(questions)
+        
+        return is_last_question or all_answered_in_category
     
     def _get_next_questionnaire_step(self) -> QuestionnaireStep:
         """Get the next questionnaire step."""
