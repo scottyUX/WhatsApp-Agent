@@ -8,9 +8,9 @@ import sys
 import os
 
 # Add the app directory to the Python path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'app'))
 
-from agents.manager_agent import detect_scheduling_intent
+from app.agents.manager_agent import detect_scheduling_intent
 
 async def test_ai_intent_detection():
     """Test AI-based intent detection with nuanced examples."""
@@ -84,3 +84,4 @@ async def test_ai_intent_detection():
 
 if __name__ == "__main__":
     asyncio.run(test_ai_intent_detection())
+

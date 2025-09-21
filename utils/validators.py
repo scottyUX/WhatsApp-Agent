@@ -82,7 +82,7 @@ class InputValidator:
         if domain in ['gmial.com', 'gmai.com', 'gmail.co']:
             return False, f"Did you mean 'gmail.com' instead of '{domain}'?"
         
-        return True, ""
+        return True, None
     
     @staticmethod
     def validate_phone(phone: str) -> Tuple[bool, str, str]:
@@ -107,11 +107,11 @@ class InputValidator:
         
         # Check if it's a valid international number
         if InputValidator.INTERNATIONAL_PHONE_REGEX.match(cleaned):
-            return True, "", cleaned
+            return True, None, cleaned
         
         # Check if it's a valid US phone number with +1
         if cleaned.startswith('+1') and len(cleaned) == 12:
-            return True, "", cleaned
+            return True, None, cleaned
         
         return False, "Please enter a valid international phone number with country code (e.g., +1234567890, +44123456789)", ""
     
@@ -145,7 +145,7 @@ class InputValidator:
         if not re.search(r'[a-zA-Z]', name):
             return False, "Name must contain at least one letter"
         
-        return True, ""
+        return True, None
     
     @staticmethod
     def validate_appointment_data(data: Dict[str, Any]) -> Tuple[bool, str, Dict[str, Any]]:

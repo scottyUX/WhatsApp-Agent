@@ -3,7 +3,12 @@
 Test script to debug Google Calendar integration
 """
 import os
+import sys
 from dotenv import load_dotenv
+
+# Add the app directory to the Python path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'app'))
+
 from app.tools.google_calendar_tools import get_calendar_service, create_calendar_event
 
 # Load environment variables
@@ -91,3 +96,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
