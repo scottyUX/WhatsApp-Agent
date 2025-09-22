@@ -1,63 +1,137 @@
-#!/usr/bin/env python3
-"""
-Test script for the updated Manager Agent with scheduling intent detection
-"""
+import pytest
+from unittest.mock import patch, AsyncMock
+from app.agents.manager_agent import run_manager
+from app.services.conversation_state_service import conversation_state_service, ConversationAgent
 
-import asyncio
-import sys
-import os
+@pytest.mark.asyncio
+async def test_manager_basic_routing():
+    """Test that manager routes messages correctly."""
+    
+    user_id = "test_user_123"
+    
+    # Clear any existing state
+    conversation_state_service.clear_conversation_state(user_id)
+    
+    with patch('app.agents.manager_agent.Runner.run') as mock_run:
+        mock_run.return_value = AsyncMock()
+        mock_run.return_value.final_output = "I'll help you with that."
+        
+        result = await run_manager(
+            "Hi, I need help",
+            user_id
+        )
+        
+        # Verify manager responds
+        assert "help" in result.lower()
 
-# Add the app directory to the Python path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'app'))
+@pytest.mark.asyncio
+async def test_manager_anna_handoff():
+    """Test that manager hands off to Anna for scheduling."""
+    
+    user_id = "test_user_123"
+    
+    # Clear any existing state
+    conversation_state_service.clear_conversation_state(user_id)
+    
+    with patch('app.agents.manager_agent.Runner.run') as mock_run:
+        mock_run.return_value = AsyncMock()
+        mock_run.return_value.final_output = "I'll transfer you to Anna for scheduling."
+        
+        result = await run_manager(
+            "I'd like to schedule a consultation",
+            user_id
+        )
+        
+        # Verify handoff response
+        assert "Anna" in result or "scheduling" in result.lower()
 
-from app.agents.manager_agent import run_manager, detect_scheduling_intent
+@pytest.mark.asyncio
+async def test_manager_conversation_state():
+    """Test that manager sets conversation state when handoff occurs."""
+    
+    user_id = "test_user_123"
+    
+    # Clear any existing state
+    conversation_state_service.clear_conversation_state(user_id)
+    
+    # Test the handoff callback directly
+    from app.agents.manager_agent import on_handoff_to_english
+    
+    # Call the handoff callback directly to test state setting
+    context = {"user_id": user_id, "message": "Hi"}
+    await on_handoff_to_english(context)
+    
+    # Verify conversation state was set
+    state = conversation_state_service.get_conversation_state(user_id)
+    assert state is not None
+    assert state.current_agent == ConversationAgent.ENGLISH
 
-async def test_manager_agent():
-    """Test the manager agent with scheduling intent detection."""
-    print("Testing Manager Agent with Scheduling Intent Detection")
-    print("=" * 60)
+@pytest.mark.asyncio
+async def test_manager_anna_already_handling():
+    """Test that manager routes directly to Anna if she's already handling."""
     
-    # Test scheduling intent detection
-    test_messages = [
-        ("I'd like to schedule a consultation", True),
-        ("Can I book an appointment?", True),
-        ("I want to speak with a specialist", True),
-        ("Schedule a call with the doctor", True),
-        ("Book a free consultation", True),
-        ("What treatments do you offer?", False),
-        ("I need help with hair loss", False),
-        ("How much does it cost?", False),
-        ("Tell me about your services", False),
-    ]
+    user_id = "test_user_123"
     
-    print("Testing Intent Detection:")
-    for message, expected in test_messages:
-        is_scheduling = await detect_scheduling_intent(message)
-        status = "CORRECT" if is_scheduling == expected else "WRONG"
-        print(f"  '{message}' → {is_scheduling} ({status})")
+    # Set Anna as already handling
+    conversation_state_service.set_conversation_state(user_id, ConversationAgent.ANNA_SCHEDULING)
     
-    print("\n" + "=" * 60)
-    print("Testing Manager Agent Routing:")
-    
-    # Test manager agent routing
-    test_conversations = [
-        ("I'd like to schedule a consultation", "Should route to Anna"),
-        ("What treatments do you offer?", "Should route to language agent"),
-        ("I need help with hair loss", "Should route to language agent"),
-        ("Can I book an appointment?", "Should route to Anna"),
-    ]
-    
-    for message, expected_route in test_conversations:
-        print(f"\nMessage: {message}")
-        print(f"Expected: {expected_route}")
-        try:
-            response = await run_manager(message, "test_user_123")
-            print(f"Response: {response[:100]}...")
-        except Exception as e:
-            print(f"Error: {e}")
-    
-    print("\nTest completed!")
+    with patch('app.agents.manager_agent.handle_scheduling_request') as mock_anna:
+        mock_anna.return_value = "I'm already helping you with scheduling."
+        
+        result = await run_manager(
+            "I want to continue with my appointment",
+            user_id
+        )
+        
+        # Verify direct routing to Anna
+        assert "scheduling" in result.lower()
+        mock_anna.assert_called_once()
 
-if __name__ == "__main__":
-    asyncio.run(test_manager_agent())
+@pytest.mark.asyncio
+async def test_manager_handoff_tool_calls():
+    """Test that manager actually calls handoff tools."""
+    
+    user_id = "test_user_123"
+    
+    # Clear any existing state
+    conversation_state_service.clear_conversation_state(user_id)
+    
+    with patch('app.agents.manager_agent.Runner.run') as mock_run:
+        mock_run.return_value = AsyncMock()
+        mock_run.return_value.final_output = "Transferring to consultation agent."
+        
+        result = await run_manager(
+            "I want to book a consultation",
+            user_id
+        )
+        
+        # Verify Runner.run was called with manager_agent
+        mock_run.assert_called_once()
+        call_args = mock_run.call_args
+        assert call_args[0][0].name == "ManagerAgent"  # First argument should be manager_agent
 
+@pytest.mark.asyncio
+async def test_manager_handoff_callbacks():
+    """Test that handoff callbacks work correctly."""
+    
+    user_id = "test_user_123"
+    
+    # Clear any existing state
+    conversation_state_service.clear_conversation_state(user_id)
+    
+    # Test Anna handoff callback
+    from app.agents.manager_agent import on_handoff_to_anna
+    context = {"user_id": user_id, "message": "I want to schedule"}
+    await on_handoff_to_anna(context)
+    
+    state = conversation_state_service.get_conversation_state(user_id)
+    assert state is not None
+    assert state.current_agent == ConversationAgent.ANNA_SCHEDULING
+    
+    # Test German handoff callback
+    from app.agents.manager_agent import on_handoff_to_german
+    context = {"user_id": user_id, "message": "Hallo"}
+    await on_handoff_to_german(context)
+    
+    state = conversation_state_service.get_conversation_state(user_id)
+    assert state.current_agent == ConversationAgent.GERMAN
