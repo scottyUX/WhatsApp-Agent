@@ -24,8 +24,11 @@ manager_agent = Agent(
     ]
 )
 
-async def run_manager(user_input: str, user_id: str, image_urls: list = [], message_history: str = None) -> str:
-    """Run the manager agent with specialized tools."""
+async def run_manager(user_input: str, user_id: str, image_urls: list = [], message_history: str = None, session=None) -> str:
+    """Run the manager agent with specialized tools.
+    If provided, `session` should be an Agents SDK Session (e.g., OpenAIConversationsSession)
+    to maintain conversation memory across turns.
+    """
     print(f"Message from {user_id}: {user_input}")
 
     # Prepare context for the manager
@@ -39,7 +42,8 @@ async def run_manager(user_input: str, user_id: str, image_urls: list = [], mess
     response = await Runner.run(
         manager_agent, 
         [{"role": "user", "content": user_input}],
-        context=context
+        context=context,
+        session=session,
     )
     
     return response.final_output if hasattr(response, 'final_output') else str(response)

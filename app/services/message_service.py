@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 from app.services.history_service import HistoryService
+from agents import OpenAIConversationsSession
 from app.agents.manager_agent import run_manager
 from app.utils.audio_converter import transcribe_twilio_media
 from app.database.entities import Message
@@ -69,8 +70,17 @@ class MessageService:
         
         print(f"📩 WhatsApp message from {phone_number}: {user_input}")
         
-        # Process the message through the agent manager
-        result = await run_manager(formatted_history, phone_number, image_urls=image_urls or [])
+        # Prepare session memory using OpenAI Conversations API (one session per WhatsApp user)
+        session_id = f"wa:{phone_number}"
+        session = OpenAIConversationsSession(conversation_id=session_id)
+
+        # Process the message through the agent manager with session memory
+        result = await run_manager(
+            formatted_history,
+            phone_number,
+            image_urls=image_urls or [],
+            session=session,
+        )
         
         print(f"🤖 Agent response: {result}")
         print(f"🤖 Response type: {type(result)}")
