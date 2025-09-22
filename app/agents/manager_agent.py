@@ -8,59 +8,91 @@ from app.agents.specialized_agents.image_agent import image_agent
 from app.agents.specialized_agents.scheduling_agent_2 import agent as anna_agent
 from app.services.conversation_state_service import conversation_state_service, ConversationAgent
 
-# Create handoff callbacks - must take exactly one argument: context
+# Create handoff callbacks - fix context handling
 async def on_handoff_to_anna(context):
     """Handle handoff to Anna (scheduling agent)."""
-    user_id = context.get('user_id') if context else None
+    # Handle both dict and RunContextWrapper objects
+    if hasattr(context, 'get'):
+        user_id = context.get('user_id')
+    else:
+        # If it's a RunContextWrapper, try to get user_id from the context
+        user_id = getattr(context, 'user_id', None)
+        if not user_id and hasattr(context, 'context'):
+            user_id = context.context.get('user_id') if hasattr(context.context, 'get') else None
+    
     if user_id:
         conversation_state_service.set_conversation_state(
             user_id, 
             ConversationAgent.ANNA_SCHEDULING,
-            context=context
+            context={'user_id': user_id}
         )
         print(f"🔄 Handoff to Anna for user {user_id}")
 
 async def on_handoff_to_english(context):
     """Handle handoff to English agent."""
-    user_id = context.get('user_id') if context else None
+    if hasattr(context, 'get'):
+        user_id = context.get('user_id')
+    else:
+        user_id = getattr(context, 'user_id', None)
+        if not user_id and hasattr(context, 'context'):
+            user_id = context.context.get('user_id') if hasattr(context.context, 'get') else None
+    
     if user_id:
         conversation_state_service.set_conversation_state(
             user_id, 
             ConversationAgent.ENGLISH,
-            context=context
+            context={'user_id': user_id}
         )
         print(f" Handoff to English agent for user {user_id}")
 
 async def on_handoff_to_german(context):
     """Handle handoff to German agent."""
-    user_id = context.get('user_id') if context else None
+    if hasattr(context, 'get'):
+        user_id = context.get('user_id')
+    else:
+        user_id = getattr(context, 'user_id', None)
+        if not user_id and hasattr(context, 'context'):
+            user_id = context.context.get('user_id') if hasattr(context.context, 'get') else None
+    
     if user_id:
         conversation_state_service.set_conversation_state(
             user_id, 
             ConversationAgent.GERMAN,
-            context=context
+            context={'user_id': user_id}
         )
         print(f"🔄 Handoff to German agent for user {user_id}")
 
 async def on_handoff_to_spanish(context):
     """Handle handoff to Spanish agent."""
-    user_id = context.get('user_id') if context else None
+    if hasattr(context, 'get'):
+        user_id = context.get('user_id')
+    else:
+        user_id = getattr(context, 'user_id', None)
+        if not user_id and hasattr(context, 'context'):
+            user_id = context.context.get('user_id') if hasattr(context.context, 'get') else None
+    
     if user_id:
         conversation_state_service.set_conversation_state(
             user_id, 
             ConversationAgent.SPANISH,
-            context=context
+            context={'user_id': user_id}
         )
         print(f" Handoff to Spanish agent for user {user_id}")
 
 async def on_handoff_to_image(context):
     """Handle handoff to Image agent."""
-    user_id = context.get('user_id') if context else None
+    if hasattr(context, 'get'):
+        user_id = context.get('user_id')
+    else:
+        user_id = getattr(context, 'user_id', None)
+        if not user_id and hasattr(context, 'context'):
+            user_id = context.context.get('user_id') if hasattr(context.context, 'get') else None
+    
     if user_id:
         conversation_state_service.set_conversation_state(
             user_id, 
             ConversationAgent.IMAGE,
-            context=context
+            context={'user_id': user_id}
         )
         print(f"🔄 Handoff to Image agent for user {user_id}")
 
