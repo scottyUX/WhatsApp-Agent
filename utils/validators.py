@@ -2,6 +2,8 @@ import re
 import html
 from typing import Optional, Tuple, Dict, Any
 from datetime import datetime
+import phonenumbers
+from phonenumbers import PhoneNumberType
 
 class ValidationError(Exception):
     """Custom exception for validation errors"""
@@ -9,6 +11,42 @@ class ValidationError(Exception):
         self.message = message
         self.field = field
         super().__init__(self.message)
+def normalize_phone(raw: str, default_region: str | None = None):
+    """Simple, robust phone number normalization using libphonenumber"""
+    raw = (raw or "").strip()
+    errors = []
+    parsed = None
+
+    # Try with default region (e.g., "US", "TR", "DE")
+    if default_region:
+        try:
+            parsed = phonenumbers.parse(raw, default_region)
+        except phonenumbers.NumberParseException as e:
+            errors.append(f"parse_with_region:{e}")
+
+    # Fallback: try as international
+    if not parsed:
+        try:
+            parsed = phonenumbers.parse(raw, None)
+        except phonenumbers.NumberParseException as e:
+            errors.append(f"parse_international:{e}")
+            return {"valid": False, "reason": "unparseable", "errors": errors}
+
+    is_possible = phonenumbers.is_possible_number(parsed)
+    is_valid = phonenumbers.is_valid_number(parsed)
+    e164 = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164) if is_valid else None
+    region = phonenumbers.region_code_for_number(parsed)
+    number_type = phonenumbers.number_type(parsed)
+
+    return {
+        "valid": bool(is_valid),
+        "possible": bool(is_possible),
+        "e164": e164,
+        "region": region,
+        "type": number_type,
+        "raw": raw,
+        "errors": errors
+    }
 
 class InputValidator:
     """Comprehensive input validation for WhatsApp Agent"""
@@ -85,35 +123,31 @@ class InputValidator:
         return True, ""
     
     @staticmethod
-    def validate_phone(phone: str) -> Tuple[bool, str, str]:
+    def validate_phone(phone: str, default_region: str = "US", require_mobile: bool = True) -> Tuple[bool, str, str]:
         """
-        Validate phone number format - requires country code for international app
+        Validate phone number using libphonenumber for production-ready validation
         
         Args:
             phone: Phone number to validate
+            default_region: Default country to assume if no country code (e.g., 'US')
+            require_mobile: Whether to require mobile numbers for SMS
             
         Returns:
-            Tuple of (is_valid, error_message, formatted_phone)
+            Tuple of (is_valid, error_message, formatted_phone_e164)
         """
         if not phone:
             return False, "Phone number is required", ""
         
-        # Clean the phone number
-        cleaned = re.sub(r'[^\d+]', '', phone.strip())
+        result = normalize_phone(phone, default_region)
         
-        # Must start with + for international format
-        if not cleaned.startswith('+'):
-            return False, "Please include country code (e.g., +1 for US, +44 for UK, +33 for France)", ""
+        if not result["valid"]:
+            return False, "Please enter a valid phone number with country code (e.g., +1 415 555 2671)", ""
         
-        # Check if it's a valid international number
-        if InputValidator.INTERNATIONAL_PHONE_REGEX.match(cleaned):
-            return True, "", cleaned
+        # Check if mobile number is required
+        if require_mobile and result["type"] not in [PhoneNumberType.MOBILE, PhoneNumberType.FIXED_LINE_OR_MOBILE]:
+            return False, "This looks like a landline number. For SMS reminders, please provide a mobile number.", ""
         
-        # Check if it's a valid US phone number with +1
-        if cleaned.startswith('+1') and len(cleaned) == 12:
-            return True, "", cleaned
-        
-        return False, "Please enter a valid international phone number with country code (e.g., +1234567890, +44123456789)", ""
+        return True, "", result["e164"]
     
     @staticmethod
     def validate_name(name: str) -> Tuple[bool, str]:

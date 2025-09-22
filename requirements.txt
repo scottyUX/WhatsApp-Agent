@@ -18,3 +18,4 @@ google-auth>=2.0.0
 google-auth-oauthlib>=1.0.0
 hubspot-api-client>=8.0.0
 pytz>=2023.3
+phonenumbers>=8.13.0
