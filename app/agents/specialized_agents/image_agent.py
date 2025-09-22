@@ -1,4 +1,5 @@
-from agents import Agent, Runner
+from agents import Agent, ModelSettings, Runner
+from app.config.settings import settings
 import base64
 import os
 
@@ -8,7 +9,11 @@ image_agent = Agent(
     There is an image which shows the top of a person's head.
     Your task is to decide how many hair grafts are needed for a hair transplant.
     """,
-    model="gpt-4o",
+    model=settings.IMAGE_AGENT_MODEL,
+    model_settings=ModelSettings(
+        temperature=settings.IMAGE_AGENT_TEMPERATURE,
+        max_tokens=settings.IMAGE_AGENT_MAX_TOKENS
+    ),
 )
 
 async def run_agent(user_input: str, image_urls: list) -> str:
