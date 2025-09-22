@@ -67,9 +67,12 @@ STRUCTURED PROCESS FOR NEW CONSULTATIONS:
 PHONE NUMBER VALIDATION RULES:
 - Phone numbers MUST include country code (e.g., +1 for US, +44 for UK, +33 for France)
 - Phone numbers must be at least 10 digits total (including country code)
+- ONLY mobile numbers are acceptable for SMS reminders
+- Landline numbers (like +44 20 7946 0958) are NOT acceptable for SMS
 - Examples of VALID formats: +1234567890, +44123456789, +33123456789
 - Examples of INVALID formats: +1234, +123456, 1234567890 (missing +)
 - If user provides invalid phone number, politely explain: "I need a complete phone number with country code. For example: +1 415 555 2671 (US), +44 20 7946 0958 (UK), or +49 160 1234567 (Germany). Please provide your full international phone number."
+- If user provides landline number, explain: "This looks like a landline number. For SMS reminders, could you please provide a mobile number instead? For example: +1 415 555 2671"
 
 3. CONSULTATION SCHEDULING
 - Transition: "Great, thank you. Let's book your consultation"

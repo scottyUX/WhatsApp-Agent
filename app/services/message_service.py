@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from app.services.history_service import HistoryService
-from agents import OpenAIConversationsSession
+from agents import SQLiteSession
 from app.agents.manager_agent import run_manager
 from app.utils.audio_converter import transcribe_twilio_media
 from app.database.entities import Message
@@ -70,9 +70,13 @@ class MessageService:
         
         print(f"📩 WhatsApp message from {phone_number}: {user_input}")
         
-        # Prepare session memory using OpenAI Conversations API (one session per WhatsApp user)
-        session_id = f"wa:{phone_number}"
-        session = OpenAIConversationsSession(conversation_id=session_id)
+        # Prepare session memory using SQLite (one session per WhatsApp user)
+        # Convert phone number to valid session ID format
+        clean_phone = phone_number.replace('+', '').replace(':', '').replace('-', '')
+        session_id = f"wa_{clean_phone}"
+        
+        # Create session with SQLite backend - simpler and more reliable
+        session = SQLiteSession(session_id, "conversations.db")
 
         # Process the message through the agent manager with session memory
         # IMPORTANT: Pass only the current user turn; the session maintains history
