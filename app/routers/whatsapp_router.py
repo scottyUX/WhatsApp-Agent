@@ -1,14 +1,18 @@
 from fastapi import APIRouter, HTTPException, Request, Response
-from app.models.message import TwilioWebhookData
+
+from app.models.twilio_message import TwilioWebhookData
 from app.config.rate_limits import limiter, RateLimitConfig
 from app.dependencies import MessageServiceDep
 
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/whatsapp",
+    tags=["WhatsApp"],
+)
 
-@router.post("/api/webhook")
+@router.post("/webhook")
 @limiter.limit(RateLimitConfig.WEBHOOK)
-async def istanbulMedic_webhook(request: Request, message_service: MessageServiceDep):
+async def whatsapp_webhook(request: Request, message_service: MessageServiceDep):
     try:
         form = await request.form()
         webhook_data = TwilioWebhookData(form)
@@ -19,7 +23,8 @@ async def istanbulMedic_webhook(request: Request, message_service: MessageServic
         audio_urls = webhook_data.get_audio_urls()
         
         # Use the message service to handle the incoming message
-        result = await message_service.handle_incoming_message(
+        result = await message_service.handle_incoming_whatsapp_message(
+            request=request,
             phone_number=user_id,
             body=user_input,
             image_urls=image_urls,
