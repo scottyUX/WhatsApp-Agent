@@ -75,8 +75,9 @@ class MessageService:
         session = OpenAIConversationsSession(conversation_id=session_id)
 
         # Process the message through the agent manager with session memory
+        # IMPORTANT: Pass only the current user turn; the session maintains history
         result = await run_manager(
-            formatted_history,
+            user_input,
             phone_number,
             image_urls=image_urls or [],
             session=session,
