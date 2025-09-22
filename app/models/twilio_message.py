@@ -1,8 +1,10 @@
-from typing import List, Optional
-from fastapi.datastructures import FormData
-import requests
 import base64
+import requests
+from typing import List
+from fastapi.datastructures import FormData
+
 from app.config.settings import settings
+
 
 class TwilioWebhookData:
     def __init__(self, form: FormData):
@@ -41,3 +43,4 @@ class Message:
         self.user_id = user_id
         self.image_urls = image_urls or []
         self.audio_urls = audio_urls or []
+
