@@ -1,187 +1,213 @@
-"""
-Scheduling Service for Istanbul Medic
-A service that helps language agents handle consultation scheduling.
-"""
-
-import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-import logging
-
-from .scheduling_models import (
-    PatientProfile, 
-    AppointmentRequest, 
-    SchedulingStep,
-    BookingError,
-    CRMError,
-    NotificationError
+import os
+import datetime
+from dotenv import load_dotenv
+from openai import OpenAI
+from agents import Agent, Runner, function_tool
+from app.tools.google_calendar_tools import (
+    create_calendar_event,
+    list_upcoming_events,
+    delete_event,
+    reschedule_event,
+    reschedule_event_by_title,
+    delete_event_by_title
 )
-from .scheduling_services import (
-    GoogleCalendarService,
-    HubSpotService,
-    NotificationService
+# Phone validation is now handled directly in Anna's prompt instructions
+
+# Load environment variables
+load_dotenv()
+os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+
+# Get today's date for context
+now = datetime.datetime.now()
+today_str = now.strftime("%A, %B %d, %Y")
+
+# Define Anna - the compassionate consultation assistant
+agent = Agent(
+    name="AnnaConsultationAssistant",
+    instructions=f"""
+You are Anna, a compassionate consultation assistant for Istanbul Medic. Today's date is {today_str}.
+
+PERSONALITY:
+- Speak with a calm, professional, and supportive demeanor
+- Be empathetic, polite, and reassuring
+- Help users feel confident and understood
+- Actively listen, confirm important details, and maintain a trustworthy tone
+- Use accessible language and avoid medical jargon
+
+ENVIRONMENT:
+- You interact via WhatsApp messaging and website chat
+- Keep messages concise, structured, and easy to read
+- Use simple formatting when asking multiple questions
+- When confusion arises, restate questions simply
+- If misunderstandings persist, suggest connecting with a human coordinator
+
+YOUR GOAL:
+Help potential patients manage their FREE, no-obligation online consultations with Istanbul Medic specialists.
+
+CAPABILITIES:
+- Schedule new consultations
+- View upcoming appointments
+- Reschedule existing appointments
+- Cancel appointments
+- Answer questions about appointments
+
+STRUCTURED PROCESS FOR NEW CONSULTATIONS:
+
+1. INITIAL CONTACT & CONSENT
+- Greet warmly and introduce yourself as Anna
+- Set expectations: "I'll help you schedule a free consultation and collect a few details so our specialists can prepare"
+- Ask for consent to collect personal information
+
+2. BASIC INFORMATION (REQUIRED)
+- Collect minimum required fields: Full name, Phone number (with country code), Email address
+- Confirm each detail back to ensure accuracy
+- These fields are MANDATORY - if user refuses, politely explain they're necessary to book
+- If refusal continues, escalate to human coordinator
+
+PHONE NUMBER VALIDATION RULES:
+- Phone numbers MUST include country code (e.g., +1 for US, +44 for UK, +33 for France)
+- Phone numbers must be at least 10 digits total (including country code)
+- Examples of VALID formats: +1234567890, +44123456789, +33123456789
+- Examples of INVALID formats: +1234, +123456, 1234567890 (missing +)
+- If user provides invalid phone number, politely explain: "I need a complete phone number with country code. For example: +1 415 555 2671 (US), +44 20 7946 0958 (UK), or +49 160 1234567 (Germany). Please provide your full international phone number."
+
+3. CONSULTATION SCHEDULING
+- Transition: "Great, thank you. Let's book your consultation"
+- Offer appointment options: "We currently have openings on Tuesday, Wednesday, and Thursday. Which day works best?"
+- After day selection: "Would you prefer morning or afternoon?"
+- Propose specific time: "Perfect, how about 2 to 3 PM on Wednesday?"
+- Confirm the time back to the user
+- Close with reassurance: "Excellent. I've scheduled your consultation for [day/time]. You'll receive a confirmation by email and SMS"
+
+4. ADDITIONAL INFORMATION COLLECTION
+After scheduling, explain the importance of collecting detailed information for the best consultation experience. Be confident and professional about gathering this information:
+
+OPENING MESSAGE:
+"To ensure our specialists can provide you with the most personalized and effective consultation, I'll need to collect some important details about your medical background and hair loss status. This information is crucial for preparing your treatment plan and ensuring your safety during any procedures."
+
+BASIC DEMOGRAPHICS (ask one at a time):
+- "What's your age?"
+- "What's your gender?"
+- "What's your location? (city, country)"
+
+MEDICAL BACKGROUND (ask one at a time, explain why each is important):
+- "Do you have any chronic illnesses or medical conditions? This helps us ensure your safety during any procedures."
+- "Are you currently taking any medications? We need to check for potential interactions."
+- "Do you have any allergies? This is critical for your safety."
+- "Have you had any surgeries in the past? This helps us understand your medical history."
+- "Do you have any heart conditions? This affects treatment recommendations."
+- "Do you have any contagious diseases? This is important for clinic safety."
+
+HAIR LOSS BACKGROUND (ask one at a time, explain why each is important):
+- "Where are you experiencing hair loss? (crown, hairline, top, etc.) This helps us determine the best treatment approach."
+- "When did your hair loss start? This helps us understand the progression."
+- "Is there a family history of hair loss? This affects our treatment strategy."
+- "Have you tried any previous hair loss treatments? This helps us avoid repeating ineffective treatments."
+
+IMPORTANT: Emphasize that this information is crucial for providing the best consultation experience. If user insists on skipping, allow it but explain they may receive a less personalized consultation.
+
+5. CLOSURE
+- Recap confirmed consultation details
+- Reassure: "This consultation will be with a specialist online. It's free and there's no obligation"
+- Thank warmly: "We look forward to speaking with you and helping you take the first step toward a new you"
+
+APPOINTMENT MANAGEMENT:
+- If user wants to reschedule: "I'd be happy to help you reschedule. Let me check your current appointment..."
+- If user wants to cancel: "I understand you need to cancel. Let me help you with that..."
+- If user wants to view appointments: "Let me show you your upcoming appointments..."
+- Always confirm changes and provide new details
+
+GUARDRAILS:
+- Never provide diagnoses or treatment recommendations
+- Only collect data with consent
+- Always allow scheduling even if user declines optional info
+- Confirm before booking
+- Escalate if user refuses required info or appears confused
+- Don't discuss prices, guarantees, or promotions
+
+TOOLS AVAILABLE:
+- create_calendar_event: Book new consultation appointments
+- list_upcoming_events: View upcoming appointments and check availability
+- delete_event: Cancel appointments by event ID
+- delete_event_by_title: Cancel appointments by searching for title/name
+- reschedule_event: Change appointment time by event ID
+- reschedule_event_by_title: Change appointment time by searching for title/name
+
+APPOINTMENT MANAGEMENT EXAMPLES:
+- "I need to reschedule my appointment" → Use reschedule tools
+- "Can I cancel my consultation?" → Use delete tools
+- "What appointments do I have?" → Use list_upcoming_events
+- "I want to change my time" → Use reschedule tools
+- "Show me my schedule" → Use list_upcoming_events
+
+Remember: You are Anna, not a medical professional. Always be compassionate, professional, and helpful.
+""",
+    tools=[
+        create_calendar_event,
+        list_upcoming_events,
+        delete_event,
+        reschedule_event,
+        reschedule_event_by_title,
+        delete_event_by_title
+    ]
 )
 
-logger = logging.getLogger(__name__)
-
-
-class SchedulingService:
-    """
-    Service for handling consultation scheduling.
-    Called by language agents when scheduling intent is detected.
-    """
+async def run_agent():
+    print("Anna - Istanbul Medic Consultation Assistant")
+    print("=" * 50)
+    print("Hello! I'm Anna, your consultation assistant at Istanbul Medic.")
+    print("I'm here to help you schedule a free, no-obligation online consultation.")
+    print("Type 'exit' to quit or Ctrl+C to stop.")
+    print("=" * 50)
     
-    def __init__(self):
-        # Initialize services
-        self.calendar_service = GoogleCalendarService()
-        self.crm_service = HubSpotService()
-        self.notification_service = NotificationService()
-    
-    async def detect_scheduling_intent(self, message: str, language: str = "en") -> bool:
-        """
-        Detect if the user wants to schedule a consultation.
-        Returns True if scheduling intent is detected.
-        """
-        scheduling_keywords = {
-            "en": [
-                "schedule", "book", "appointment", "consultation", "meeting",
-                "available", "time", "date", "calendar", "reserve", "set up"
-            ],
-            "de": [
-                "termin", "buchung", "beratung", "treffen", "verfügbar",
-                "zeit", "datum", "kalender", "reservieren", "vereinbaren"
-            ],
-            "es": [
-                "programar", "reservar", "cita", "consulta", "reunión",
-                "disponible", "hora", "fecha", "calendario", "agendar"
-            ]
-        }
-        
-        keywords = scheduling_keywords.get(language, scheduling_keywords["en"])
-        message_lower = message.lower()
-        
-        return any(keyword in message_lower for keyword in keywords)
-    
-    async def collect_patient_info(self, message: str, current_profile: PatientProfile, step: SchedulingStep) -> Tuple[str, PatientProfile, SchedulingStep]:
-        """
-        Collect patient information step by step.
-        Returns: (response_message, updated_profile, next_step)
-        """
-        responses = self._get_responses()
-        
-        if step == SchedulingStep.INITIAL_CONTACT:
-            return responses["consent_request"], current_profile, SchedulingStep.BASIC_INFO
-        
-        elif step == SchedulingStep.BASIC_INFO:
-            if not current_profile.name:
-                current_profile.name = message.strip()
-                return responses["phone_request"], current_profile, SchedulingStep.BASIC_INFO
-            
-            elif not current_profile.phone:
-                current_profile.phone = message.strip()
-                return responses["email_request"], current_profile, SchedulingStep.BASIC_INFO
-            
-            elif not current_profile.email:
-                current_profile.email = message.strip()
+    try:
+        while True:
+            try:
+                user_input = input("\nYou: ").strip()
+                if user_input.lower() in {"exit", "quit", "bye", "goodbye"}:
+                    print("\nAnna: Thank you for considering Istanbul Medic. We look forward to helping you on your journey to a new you. Take care!")
+                    break
                 
-                # Validate required fields
-                if self._validate_required_fields(current_profile):
-                    return responses["scheduling_intro"], current_profile, SchedulingStep.CONSULTATION_SCHEDULING
-                else:
-                    return responses["validation_error"], current_profile, SchedulingStep.BASIC_INFO
-        
-        elif step == SchedulingStep.CONSULTATION_SCHEDULING:
-            # Initialize appointment request if not exists
-            if not current_profile.appointment_request:
-                current_profile.appointment_request = AppointmentRequest()
-            
-            if not current_profile.appointment_request.preferred_date:
-                current_profile.appointment_request.preferred_date = message.strip()
-                return responses["time_preference"], current_profile, SchedulingStep.CONSULTATION_SCHEDULING
-            
-            elif not current_profile.appointment_request.preferred_time:
-                current_profile.appointment_request.preferred_time = message.strip()
-                return responses["scheduling_confirmation"], current_profile, SchedulingStep.ADDITIONAL_INFO
-        
-        elif step == SchedulingStep.ADDITIONAL_INFO:
-            # Handle optional information collection
-            if any(word in message.lower() for word in ["skip", "no", "nein", "no", "pass"]):
-                return responses["closure_intro"], current_profile, SchedulingStep.CLOSURE
-            else:
-                # Collect optional info (simplified)
-                if not current_profile.location:
-                    current_profile.location = message.strip()
-                    return responses["age_request"], current_profile, SchedulingStep.ADDITIONAL_INFO
-                else:
-                    return responses["closure_intro"], current_profile, SchedulingStep.CLOSURE
-        
-        return responses["error"], current_profile, step
-    
-    async def book_appointment(self, patient_profile: PatientProfile) -> Dict[str, Any]:
-        """
-        Book the appointment and create lead.
-        Returns appointment details or raises an error.
-        """
-        try:
-            # Book appointment in Google Calendar
-            appointment = await self.calendar_service.create_appointment(
-                patient_profile, 
-                patient_profile.appointment_request
-            )
-            
-            if not appointment:
-                raise BookingError("Failed to create appointment")
-            
-            # Create lead in HubSpot
-            try:
-                lead_id = await self.crm_service.create_lead(patient_profile)
-                appointment["lead_id"] = lead_id
-            except Exception as e:
-                logger.warning(f"Failed to create lead in HubSpot: {e}")
-                appointment["lead_id"] = None
-            
-            # Send confirmations
-            try:
-                await self.notification_service.send_confirmation(
-                    patient_profile.phone,
-                    patient_profile.email,
-                    patient_profile.appointment_request
-                )
-            except Exception as e:
-                logger.warning(f"Failed to send confirmation: {e}")
-            
-            return appointment
-            
-        except Exception as e:
-            logger.error(f"Error booking appointment: {e}")
-            raise BookingError(f"Failed to book appointment: {e}")
-    
-    def _validate_required_fields(self, profile: PatientProfile) -> bool:
-        """Validate that all required fields are present."""
-        return all([
-            profile.name and len(profile.name.strip()) > 0,
-            profile.phone and len(profile.phone.strip()) > 0,
-            profile.email and "@" in profile.email
-        ])
-    
-    def _get_responses(self) -> Dict[str, str]:
-        """Get language-specific responses."""
-        return {
-            "consent_request": "I'll need to collect some basic information to book your consultation. This includes your name, phone number, and email address. Is that okay with you?",
-            "name_request": "Perfect! Let's start with your full name, please.",
-            "phone_request": "Thank you! Now, could you please provide your phone number?",
-            "email_request": "Great! And your email address?",
-            "scheduling_intro": "Excellent! Now let's find a convenient time for your consultation. What day works best for you?",
-            "time_preference": "Would you prefer morning or afternoon?",
-            "scheduling_confirmation": "Perfect! I've scheduled your consultation. You'll receive a confirmation by email and SMS with all the details.",
-            "age_request": "Thank you! What's your age? (This is optional - you can say 'skip' if you prefer not to share)",
-            "closure_intro": "Great! To help our specialists prepare, I'd like to ask a few optional questions about your medical background. You can skip any you're not comfortable with, or say 'skip all' to proceed.",
-            "validation_error": "I need all three pieces of information to proceed. Let me start over. What's your full name?",
-            "error": "I apologize, but I'm having trouble processing that. Could you please try again?"
-        }
+                if not user_input:
+                    continue
+                    
+                print("\nAnna: ", end="")
+                response = await Runner.run(agent, [{"role": "user", "content": user_input}])
+                print(response.final_output if hasattr(response, 'final_output') else str(response))
+                
+            except EOFError:
+                print("\n\nAnna: Thank you for considering Istanbul Medic. Take care!")
+                break
+    except KeyboardInterrupt:
+        print("\n\nAnna: Thank you for considering Istanbul Medic. Take care!")
+        return
 
+# Phone validation is now handled directly in Anna's prompt instructions
 
-# Factory function
-def create_scheduling_service() -> SchedulingService:
-    """Create a new scheduling service instance."""
-    return SchedulingService()
+async def handle_scheduling_request(user_message: str, user_id: str = None) -> str:
+    """
+    Handle scheduling requests from the manager agent.
+    This function integrates Anna with your existing WhatsApp agent system.
+    """
+    try:
+        # Run Anna with the user's message - validation is handled in Anna's prompt
+        response = await Runner.run(agent, [{"role": "user", "content": user_message}])
+        return response.final_output if hasattr(response, 'final_output') else str(response)
+    except Exception as e:
+        print(f"Error in scheduling agent: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"I apologize, but I'm experiencing some technical difficulties. Let me connect you with a human coordinator who can assist you with scheduling your consultation."
+
+# Note: Intent detection is handled by the Manager Agent
+# This scheduling agent focuses solely on consultation scheduling
+
+# To run from script
+if __name__ == "__main__":
+    import asyncio
+    try:
+        asyncio.run(run_agent())
+    except KeyboardInterrupt:
+        print("\nAnna: Thank you for considering Istanbul Medic. Take care!")
+    except Exception as e:
+        print(f"\nAn error occurred: {e}")

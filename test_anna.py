@@ -10,7 +10,7 @@ import os
 # Add the app directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
 
-from app.agents.specialized_agents.scheduling_agent_2 import handle_scheduling_request
+from app.agents.specialized_agents.scheduling_agent import handle_scheduling_request
 
 async def test_anna():
     """Test Anna's consultation scheduling capabilities."""

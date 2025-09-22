@@ -1,7 +1,7 @@
 from agents import Agent, Runner
 from app.services.openai_service import openai_service
 from app.agents.specialized_agents.image_agent import image_agent
-from app.agents.specialized_agents.scheduling_agent_2 import agent as scheduling_agent
+from app.agents.specialized_agents.scheduling_agent import agent as scheduling_agent
 from app.agents.language_agents.english_agent import agent as knowledge_agent
 
 # Create the manager agent using the Manager pattern
