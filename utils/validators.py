@@ -272,16 +272,16 @@ class InputValidator:
         # Extract phone number (prioritize international format)
         # Look for phone numbers with country codes first
         phone_patterns = [
-            r'phone\s+number\s+is\s+(\+[1-9]\d{6,14})',  # "phone number is +1234567890"
-            r'phone\s+is\s+(\+[1-9]\d{6,14})',  # "phone is +1234567890"
-            r'phone:\s*(\+[1-9]\d{6,14})',  # "phone: +1234567890"
-            r'(\+[1-9]\d{6,14})',  # Just the number with country code
-            r'phone\s+number\s+is\s+(\d{10,15})',  # "phone number is 1234567890" (will add +1)
-            r'phone\s+is\s+(\d{10,15})',  # "phone is 1234567890" (will add +1)
-            r'phone:\s*(\d{10,15})',  # "phone: 1234567890" (will add +1)
-            r'phone\s+number\s+is\s+(\d+)',  # "phone number is 12345" (any digits)
-            r'phone\s+is\s+(\d+)',  # "phone is 12345" (any digits)
-            r'phone:\s*(\d+)',  # "phone: 12345" (any digits)
+            # Prefer explicit cues with international format first
+            r'phone\s+number\s+is\s*(\+\d{1,15})',
+            r'phone\s+is\s*(\+\d{1,15})',
+            r'phone:\s*(\+\d{1,15})',
+            # Bare international number anywhere in text (capture and let validator reject if too short)
+            r'(\+\d{1,15})',
+            # Local numeric forms as fallback (validator will handle correctness)
+            r'phone\s+number\s+is\s*(\d{7,15})',
+            r'phone\s+is\s*(\d{7,15})',
+            r'phone:\s*(\d{7,15})',
         ]
         
         phone_found = False

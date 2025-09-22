@@ -211,10 +211,14 @@ async def handle_scheduling_request(user_message: str, user_id: str = None) -> s
     try:
         # Validate user input first
         is_valid, error_message, extracted_data = validate_user_input(user_message)
-        
-        if not is_valid and extracted_data:
-            # Return validation error to user
-            return f"I need to clarify some information:\n\n{error_message}\n\nPlease provide the correct details and I'll help you schedule your consultation."
+
+        # If validation failed for any extracted field (e.g., phone), surface the error immediately
+        if not is_valid:
+            return (
+                "I need to clarify some information:\n\n"
+                f"{error_message}\n\n"
+                "Please provide the correct details and I'll help you schedule your consultation."
+            )
         
         # Run Anna with the user's message
         response = await Runner.run(agent, [{"role": "user", "content": user_message}])
