@@ -269,19 +269,12 @@ class InputValidator:
                 extracted['email'] = email_match.group(1).lower()
                 break
         
-        # Extract phone number (prioritize international format)
-        # Look for phone numbers with country codes first
+        # Extract phone number - simplified patterns
         phone_patterns = [
-            # Prefer explicit cues with international format first
-            r'phone\s+number\s+is\s*(\+\d{1,15})',
-            r'phone\s+is\s*(\+\d{1,15})',
-            r'phone:\s*(\+\d{1,15})',
-            # Bare international number anywhere in text (capture and let validator reject if too short)
-            r'(\+\d{1,15})',
-            # Local numeric forms as fallback (validator will handle correctness)
-            r'phone\s+number\s+is\s*(\d{7,15})',
-            r'phone\s+is\s*(\d{7,15})',
-            r'phone:\s*(\d{7,15})',
+            r'phone\s+number\s+is\s*(\+?\d{7,15})',
+            r'phone\s+is\s*(\+?\d{7,15})',
+            r'phone:\s*(\+?\d{7,15})',
+            r'(\+\d{7,15})',  # International format
         ]
         
         phone_found = False
