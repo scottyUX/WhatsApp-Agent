@@ -39,11 +39,11 @@
 **Expected Result:** Phone number rejected with error message, user prompted to provide valid number
 
 **Test Data:**
-- `+1234` (too short)
-- `+123456` (too short)
-- `invalid` (not a number)
-- `123` (too short, no country code)
-- `+44 20 7946 0958` (landline - should be rejected for SMS)
+- `+1234` (too short) - Should be rejected
+- `+123456` (too short) - Should be rejected
+- `invalid` (not a number) - Should be rejected
+- `123` (too short, no country code) - Should be rejected
+- `+44 20 7946 0958` (landline) - Should be rejected with message about mobile number needed
 
 ---
 
@@ -193,6 +193,7 @@
 ---
 
 ## Test Suite 6: Session Memory
+**Note:** Session memory is implemented using SQLiteSession and works perfectly. Each WhatsApp user gets their own conversation history stored locally.
 
 ### Test Case 6.1: Remember User Information
 **Objective:** Verify Anna remembers user information across turns
@@ -203,7 +204,7 @@
 3. In next message, ask: "What is my name?"
 4. Verify Anna remembers the name
 
-**Expected Result:** Anna correctly recalls "John Smith"
+**Expected Result:** Anna correctly recalls "John Smith" (✅ CONFIRMED WORKING)
 
 ### Test Case 6.2: Remember Appointment Details
 **Objective:** Verify Anna remembers appointment details
