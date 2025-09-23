@@ -97,8 +97,8 @@ class MessageService:
         self,
         request: Request,
         message: str,
-        # media_urls: Optional[List[str]] = None,
-        # audio_urls: Optional[List[str]] = None
+        media_urls: Optional[List[str]] = None,
+        audio_urls: Optional[List[str]] = None
     ) -> str:
         device_id = RequestUtils.get_device_id_from_headers(request)
         ip_address = RequestUtils.get_ip_address_from_headers(request)

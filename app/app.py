@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 
 from app.config.settings import settings
-from app.routers import test, healthcheck, whatsapp_router
+from app.routers import test, healthcheck, whatsapp_router, chat_router
 from app.config.rate_limits import limiter, custom_rate_limit_handler
 
 
@@ -39,6 +39,7 @@ app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 
 # Include routers
 app.include_router(whatsapp_router.router)
+app.include_router(chat_router.router)
 app.include_router(healthcheck.router)
 
 # Only include test router in debug mode
