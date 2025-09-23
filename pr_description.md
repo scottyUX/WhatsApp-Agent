@@ -9,7 +9,7 @@ This PR implements a simplified multi-agent architecture with production-ready p
 - **Manager with agents as tools pattern** - Replaced complex handoff system with clean tool-based architecture
 - **Removed language agents** - Disabled German and Spanish agents as requested
 - **Repurposed English agent** - Now serves as Knowledge Agent for general information
-- **Session memory integration** - Added OpenAIConversationsSession for conversation persistence
+- **Session memory integration** - Added SQLiteSession for conversation persistence
 
 #### Enhanced Phone Validation
 - **libphonenumber integration** - Production-ready international phone validation
@@ -64,7 +64,7 @@ This PR implements a simplified multi-agent architecture with production-ready p
 - reschedule_event_by_title - Change appointment time by searching for title/name
 
 #### Session Memory
-- **OpenAIConversationsSession** - Automatic conversation history management
+- **SQLiteSession** - Local SQLite-based conversation history management
 - **Context persistence** - Maintains user information across turns
 - **No manual state management** - SDK handles all conversation state
 
@@ -101,7 +101,7 @@ This PR implements a simplified multi-agent architecture with production-ready p
 ### Deployment Notes
 - Requires phonenumbers>=8.13.0 dependency
 - No database migrations required
-- Session memory uses OpenAI Conversations API
+- Session memory uses local SQLite database (conversations.db)
 
 ### Ready for Production
 - All features tested and working

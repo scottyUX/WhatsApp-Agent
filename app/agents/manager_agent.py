@@ -33,7 +33,7 @@ CRITICAL ROUTING RULES:
 
 async def run_manager(user_input: str, user_id: str, image_urls: list = [], message_history: str = None, session=None) -> str:
     """Run the manager agent with specialized tools.
-    If provided, `session` should be an Agents SDK Session (e.g., OpenAIConversationsSession)
+    If provided, `session` should be an Agents SDK Session (e.g., SQLiteSession)
     to maintain conversation memory across turns.
     """
     print(f"Message from {user_id}: {user_input}")
