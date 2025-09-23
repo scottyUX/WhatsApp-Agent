@@ -11,17 +11,20 @@ class MessageService:
     def __init__(self, history_service: HistoryService):
         self.history_service = history_service
 
+
     def format_message_history(self, messages: List[Message]) -> str:
         """Format message history for context."""
         formatted = []
         for msg in messages:
-            direction = "User" if msg.direction == "incoming" else "Agent"
-            body = msg.body or ""
-            if msg.media_url:
-                body += f" [Media: {msg.media_url}]"
-            message_information = f"[{direction} | {msg.created_at.strftime('%Y-%m-%d %H:%M:%S')}]: {body}"
+            direction = "User" if msg.sender == "user" else "Agent"
+            message = msg.content or ""
+            media_list = msg.media or []
+            for media in media_list:
+                message += f" [Media: {media.media_url}]"
+            message_information = f"[{direction} | {msg.created_at.strftime('%Y-%m-%d %H:%M:%S')}]: {message}"
             formatted.append(message_information)
         return "\n".join(formatted)
+
 
     async def handle_incoming_whatsapp_message(
         self,
@@ -67,7 +70,7 @@ class MessageService:
         # Log the incoming message
         current_message = self.history_service.log_incoming_message(
             conversation_id=conversation.id,
-            body=user_input,
+            content=user_input,
             media_url=media_url
         )
         
@@ -84,7 +87,7 @@ class MessageService:
         # Log the outgoing response
         self.history_service.log_outgoing_message(
             conversation_id=conversation.id,
-            body=result
+            content=result
         )
         
         return result
@@ -113,7 +116,7 @@ class MessageService:
         # Log the incoming message
         current_message = self.history_service.log_incoming_message(
             conversation_id=conversation.id,
-            body=message,
+            content=message,
             # media_url=media_url
         )
         
@@ -130,7 +133,7 @@ class MessageService:
         # Log the outgoing response
         self.history_service.log_outgoing_message(
             conversation_id=conversation.id,
-            body=result
+            content=result
         )
         
         return result

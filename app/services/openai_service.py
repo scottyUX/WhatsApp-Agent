@@ -49,7 +49,7 @@ If the text doesn't clearly match any of the supported languages, default to Eng
             # Execute the chain
             result = chain.invoke({"text": text})
             
-            print(f"🌍 Language detection result: {result.language} (confidence: {result.confidence:.2f})")
+            print(f"Language detection result: {result.language} (confidence: {result.confidence:.2f})")
             return result.language.value
             
         except Exception as e:

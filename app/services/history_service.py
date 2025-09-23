@@ -7,6 +7,7 @@ from app.database.repositories import (
     ConnectionRepository,
     ConversationRepository,
     MessageRepository,
+    MediaRepository,
 )
 
 
@@ -15,11 +16,14 @@ class HistoryService:
                  user_repository: UserRepository,
                  connection_repository: ConnectionRepository,
                  conversation_repository: ConversationRepository,
-                 message_repository: MessageRepository):
+                 message_repository: MessageRepository,
+                 media_repository: MediaRepository
+                 ):
         self.user_repository = user_repository
         self.connection_repository = connection_repository
         self.conversation_repository = conversation_repository
         self.message_repository = message_repository
+        self.media_repository = media_repository
 
 
     def get_or_create_user_by_phone_number(self, phone_number: str) -> User:
@@ -61,28 +65,38 @@ class HistoryService:
 
     def get_or_create_conversation(self, user_id: uuid.UUID, connection_id: uuid.UUID) -> Conversation:
         """Get existing conversation or create a new one."""
-        conversation = self.conversation_repository.get_by_connection(connection_id=connection_id)
-        if not conversation:
-            conversation = self.conversation_repository.create(user_id=user_id, connection_id=connection_id)
-        return conversation
+        conversations = self.conversation_repository.get_by_connection(connection_id=connection_id)
+        if conversations:
+            # Return the most recent conversation (first one since they're ordered by created_at desc)
+            return conversations[0]
+        else:
+            # Create a new conversation if none found
+            return self.conversation_repository.create(connection_id=connection_id)
 
 
-    def log_incoming_message(self, conversation_id: uuid.UUID, body: Optional[str], media_url: Optional[str] = None) -> Message:
+    def log_incoming_message(self, conversation_id: uuid.UUID, content: Optional[str], media_url: Optional[str] = None) -> Message:
         """Log an incoming message from a user."""
-        return self.message_repository.create(
+        message = self.message_repository.create(
             conversation_id=conversation_id,
             sender="user",
-            body=body,
-            media_url=media_url
+            content=content,
         )
+        if media_url:
+            media_type = "image"
+            self.media_repository.create(
+                message_id=message.id,
+                media_url=media_url,
+                media_type=media_type
+            )
+        return message
 
 
-    def log_outgoing_message(self, conversation_id: uuid.UUID, body: str) -> Message:
+    def log_outgoing_message(self, conversation_id: uuid.UUID, content: str) -> Message:
         """Log an outgoing message to a user."""
         return self.message_repository.create(
             conversation_id=conversation_id,
             sender="agent",
-            body=body
+            content=content
         )
 
 
