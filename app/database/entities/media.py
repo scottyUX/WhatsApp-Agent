@@ -5,8 +5,8 @@ from typing import Optional
 from sqlalchemy import ForeignKey, String, Text, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database.db import Base
 from app.models.enums import MediaType
+from .base import Base
 from .mixins import IdMixin
 
 if typing.TYPE_CHECKING:
@@ -26,7 +26,7 @@ class Media(Base, IdMixin):
     caption: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
-    message: Mapped["Message"] = relationship("Message", back_populates="media")
+    message: Mapped["Message"] = relationship("Message", back_populates="media", init=False)
 
     def __repr__(self):
         return f"<Media {self.id}>"

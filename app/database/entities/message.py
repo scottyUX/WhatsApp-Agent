@@ -6,7 +6,7 @@ from typing import Optional
 from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database.db import Base
+from .base import Base
 from .mixins import IdMixin
 
 if typing.TYPE_CHECKING:
@@ -23,8 +23,8 @@ class Message(Base, IdMixin):
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Relationships
-    conversation: Mapped["Conversation"] = relationship("Conversation", back_populates="messages")
-    media: Mapped[list["Media"]] = relationship("Media", back_populates="message")
+    conversation: Mapped["Conversation"] = relationship("Conversation", back_populates="messages", init=False)
+    media: Mapped[list["Media"]] = relationship("Media", back_populates="message", default_factory=list, init=False)
 
     def __repr__(self):
         return f"<Message {self.id}>"

@@ -6,7 +6,7 @@ from typing import Optional
 from sqlalchemy import ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database.db import Base
+from .base import Base
 from .mixins import IdMixin
 
 if typing.TYPE_CHECKING:
@@ -23,7 +23,7 @@ class User(Base, IdMixin):
     phone_number: Mapped[str] = mapped_column(nullable=True)
 
     # Relationships
-    connections: Mapped[list["Connection"]] = relationship("Connection", back_populates="user")
+    connections: Mapped[list["Connection"]] = relationship("Connection", back_populates="user", default_factory=list, init=False)
 
     # Constraints
     __table_args__ = (
