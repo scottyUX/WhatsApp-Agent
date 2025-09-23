@@ -1,3 +1,4 @@
+import traceback
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from app.models.twilio_message import TwilioWebhookData
@@ -11,7 +12,7 @@ router = APIRouter(
 )
 
 @router.post("/webhook")
-@limiter.limit(RateLimitConfig.WEBHOOK)
+@limiter.limit(RateLimitConfig.WHATSAPP)
 async def whatsapp_webhook(request: Request, message_service: MessageServiceDep):
     try:
         form = await request.form()
@@ -24,7 +25,6 @@ async def whatsapp_webhook(request: Request, message_service: MessageServiceDep)
         
         # Use the message service to handle the incoming message
         result = await message_service.handle_incoming_whatsapp_message(
-            request=request,
             phone_number=user_id,
             body=user_input,
             image_urls=image_urls,
@@ -39,6 +39,7 @@ async def whatsapp_webhook(request: Request, message_service: MessageServiceDep)
         return Response(content=xml_response.strip(), media_type="text/xml")
 
     except Exception as e:
+        traceback.print_exc()
         print(f"❌ Webhook error: {e}")
         return Response(content="""
         <Response>
