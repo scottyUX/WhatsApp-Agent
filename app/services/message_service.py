@@ -100,8 +100,8 @@ class MessageService:
         # media_urls: Optional[List[str]] = None,
         # audio_urls: Optional[List[str]] = None
     ) -> str:
-        device_id = RequestUtils.get_device_id(request)
-        ip_address = RequestUtils.get_client_ip(request)
+        device_id = RequestUtils.get_device_id_from_headers(request)
+        ip_address = RequestUtils.get_ip_address_from_headers(request)
         connection = self.history_service.get_or_create_connection(
             channel="chat",
             device_id=device_id,
