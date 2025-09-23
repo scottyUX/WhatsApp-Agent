@@ -29,7 +29,7 @@ async def chat(request: Request,
         # Use the message service to handle the incoming message
         content = await message_service.handle_incoming_chat_message(
             request=request,
-            content=content,
+            message=content,
             media_urls=media_urls,
             audio_urls=audio_urls
         )
