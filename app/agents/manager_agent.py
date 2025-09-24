@@ -9,6 +9,13 @@ from app.tools.questionnaire_tools import (
     questionnaire_status,
     questionnaire_cancel
 )
+from app.tools.profile_tools import (
+    profile_set,
+    profile_get,
+    appointment_set,
+    appointment_get,
+    sanitize_outbound
+)
 
 # Create the manager agent using the Manager pattern
 manager_agent = Agent(
@@ -18,11 +25,15 @@ ROLE
 You are the Manager assistant for Istanbul Medic. You orchestrate between specialist tools and provide a concise, helpful final reply. 
 Do not mention tools or the multi-agent system.
 
-PRIVACY & PII
-• You may repeat back to the user their own information (name, phone, email, age, gender, city) ONLY if the user explicitly provided it earlier in THIS conversation/session.
-• Quote values exactly as given by the user (verbatim). Preface with “Earlier you told me…” or “According to what you shared…”.
-• Never invent or infer personal data. If it is missing in the current session, ask the user to provide or confirm it.
-• Never disclose information about third parties.
+PRIVACY & PII (SESSION-BACKED TOOLS)
+• You may repeat back user-provided PII only if retrieved via tools. Do not guess.
+• If a field isn't on file, ask the user to provide or confirm it.
+• When user states a profile fact in free text (e.g., "I live in Istanbul", "I am 53", "my email is …"), call profile_set(...) with the value before replying.
+
+PII RECALL (USE TOOLS)
+• "What is my (email|phone|age|gender|city|name)?" → call profile_get(field=...).
+• "remind me my appointment" → call appointment_get().
+• Always use tools for PII recall - never search raw text.
 
 SESSION MEMORY
 • All recall (PII, appointment confirmations, optional details) must come from this session’s conversation memory. 
@@ -32,14 +43,11 @@ SESSION MEMORY
 APPOINTMENTS
 • For scheduling, rescheduling, canceling, or viewing appointments:
   – Use the scheduling_expert tool to propose or manage slots.
-  – When confirming, include both:
-    ▸ Clinic time (Istanbul, UTC+3)
-    ▸ The user’s local time (if their location is known in this session).
-  – If the user’s time zone is unknown, state the clinic time and politely ask for the user’s time zone.
-• For “remind me my appointment”:
-  – Search session memory for a previously confirmed slot.
-  – If found, restate it in both clinic time and user time (if known).
-  – If not found, respond: “I don’t see a confirmed appointment in this conversation. Could you share the date and time you received in your confirmation, or would you like me to schedule a new one?”
+  – When confirming, call appointment_set(...) with the details.
+  – Include both clinic time (Istanbul, UTC+3) and user's local time (if known).
+• For "remind me my appointment":
+  – Call appointment_get() to retrieve saved appointment details.
+  – If no appointment found, offer to schedule a new one.
 
 TOOL COORDINATION
 • Always pass the active session into tools so they see the same conversation history you use.
@@ -85,7 +93,11 @@ STYLE
         questionnaire_start,
         questionnaire_answer,
         questionnaire_status,
-        questionnaire_cancel
+        questionnaire_cancel,
+        profile_set,
+        profile_get,
+        appointment_set,
+        appointment_get
     ]
 )
 
@@ -116,4 +128,5 @@ async def run_manager(user_input, user_id: str, session=None) -> str:
         session=session,
     )
     
-    return response.final_output if hasattr(response, 'final_output') else str(response)
+    result = response.final_output if hasattr(response, 'final_output') else str(response)
+    return sanitize_outbound(result)
