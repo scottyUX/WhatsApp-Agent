@@ -3,6 +3,12 @@ from app.services.openai_service import openai_service
 from app.agents.specialized_agents.image_agent import image_tool
 from app.agents.specialized_agents.scheduling_agent import scheduling_tool
 from app.agents.language_agents.english_agent import knowledge_tool
+from app.tools.questionnaire_tools import (
+    questionnaire_start,
+    questionnaire_answer,
+    questionnaire_status,
+    questionnaire_cancel
+)
 
 # Create the manager agent using the Manager pattern
 manager_agent = Agent(
@@ -47,6 +53,14 @@ ROUTING RULES
 • Company, services, or procedure FAQs → knowledge_expert.
 • Other small-talk or non-tool queries → answer directly.
 
+QUESTIONNAIRE ROUTING
+• After confirming appointment details (name, phone, email, time), ask: "Would you like to answer a few optional questions to help our specialist prepare? We'll go one at a time, and you can say 'skip' or 'skip all' anytime."
+• If user agrees, call questionnaire_start()
+• Check questionnaire status with questionnaire_status() before processing any user message
+• While questionnaire is active, route all user messages to questionnaire_answer(user_text=...)
+• If user says "cancel questionnaire", call questionnaire_cancel()
+• Never block scheduling if user declines questionnaire - proceed normally
+
 TIME & DATE CLARITY
 • Always specify time zones when giving appointment times.
 • State explicitly: “Clinic time (UTC+3, Istanbul)” and “Your local time (if known)”.
@@ -65,7 +79,11 @@ STYLE
     tools=[
         scheduling_tool,
         image_tool,
-        knowledge_tool
+        knowledge_tool,
+        questionnaire_start,
+        questionnaire_answer,
+        questionnaire_status,
+        questionnaire_cancel
     ]
 )
 
