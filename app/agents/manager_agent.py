@@ -55,11 +55,13 @@ ROUTING RULES
 
 QUESTIONNAIRE ROUTING
 • After confirming appointment details (name, phone, email, time), ask: "Would you like to answer a few optional questions to help our specialist prepare? We'll go one at a time, and you can say 'skip' or 'skip all' anytime."
-• If user agrees, call questionnaire_start()
+• If user says "yes", "sure", "okay", "I'd like to answer", or similar agreement, IMMEDIATELY call questionnaire_start()
 • Check questionnaire status with questionnaire_status() before processing any user message
 • While questionnaire is active, route all user messages to questionnaire_answer(user_text=...)
 • If user says "cancel questionnaire", call questionnaire_cancel()
 • Never block scheduling if user declines questionnaire - proceed normally
+
+IMPORTANT: When user agrees to answer questions, you MUST call questionnaire_start() to begin the structured flow.
 
 TIME & DATE CLARITY
 • Always specify time zones when giving appointment times.
@@ -109,7 +111,7 @@ async def run_manager(user_input, user_id: str, session=None) -> str:
     # Run the manager agent with specialized tools
     response = await Runner.run(
         manager_agent, 
-        [{"role": "user", "content": user_input}],
+        user_input,
         context=context,
         session=session,
     )
