@@ -1,7 +1,8 @@
-from agents import Agent, ModelSettings, Runner
+from openai.types.responses import ResponseTextDeltaEvent
+from agents import Agent, ModelSettings, Runner, ItemHelpers
+
 from app.config.settings import settings
-import base64
-import os
+
 
 image_agent = Agent(
     name="ImageExplainAgent",
@@ -16,7 +17,7 @@ image_agent = Agent(
     ),
 )
 
-async def run_agent(user_input: str, image_urls: list) -> str:
+async def run_image_agent(user_input: str, image_urls: list) -> str:
     print("🗣️ Image agent activated")
     content = [{"type": "input_text", "text": user_input}]
     content += [{"type": "input_image", "image_url": url} for url in image_urls]
@@ -30,6 +31,44 @@ async def run_agent(user_input: str, image_urls: list) -> str:
     )
     return result.final_output or "Sorry, I couldn't find an answer."
 
-def encode_image_to_base64(image_path: str) -> str:
-    with open(image_path, "rb") as img_file:
-        return base64.b64encode(img_file.read()).decode("utf-8")
+
+async def run_image_agent_streaming(user_input: str, image_urls: list):
+    """Stream the image agent response for real-time output"""
+    print("🗣️ Image agent activated (streaming)")
+    content = [{"type": "input_text", "text": user_input}]
+    content += [{"type": "input_image", "image_url": url} for url in image_urls]
+    input = [
+        {
+            "role": "user",
+            "content": content
+        }
+    ]
+    result = Runner.run_streamed(image_agent, input=input)
+    async for event in result.stream_events():
+        # Raw response tokens from the LLM
+        if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
+            print(event.data.delta, end="", flush=True)
+            yield event.data.delta
+
+        # Higher level events: message output, tool calls, etc
+        elif event.type == "run_item_stream_event":
+            name = event.name  # e.g. 'tool_called', 'tool_output', 'message_output_created'
+            item = event.item
+            if name == "tool_called":
+                # tool was called
+                pass
+            elif name == "tool_output":
+                # tool output received
+                pass
+            elif name == "message_output_created":
+                # the difference between this and raw response is that this is higher level, after tool calls etc
+                text = ItemHelpers.text_message_output(item)
+                pass
+
+        # If the agent is switching (handoff) to another agent
+        elif event.type == "agent_updated_stream_event":
+            # agent switched
+            pass
+
+    # Once done
+    print("\n=== Streaming complete ===")
