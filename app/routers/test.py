@@ -18,7 +18,11 @@ async def test_agent(request: Request):
 
         print(f"📩 Testing message from {user_id}: {user_input}")
 
-        result = await run_manager(user_input, user_id, image_urls=[image_url])
+        # Build multimodal input for testing
+        content = [{"type": "input_text", "text": user_input}]
+        content += [{"type": "input_image", "image_url": image_url}]
+        
+        result = await run_manager(content, user_id)
         print(result)
 
         xml_response = f"""

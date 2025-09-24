@@ -22,18 +22,23 @@ CRITICAL ROUTING RULES:
     ]
 )
 
-async def run_manager(user_input: str, user_id: str, image_urls: list = [], message_history: str = None, session=None) -> str:
+async def run_manager(user_input, user_id: str, session=None) -> str:
     """Run the manager agent with specialized tools.
-    If provided, `session` should be an Agents SDK Session (e.g., SQLiteSession)
-    to maintain conversation memory across turns.
+    
+    Args:
+        user_input: Can be a string or multimodal content list
+        user_id: User identifier
+        session: SQLiteSession for conversation memory
+        
+    Returns:
+        Agent response string
     """
     print(f"Message from {user_id}: {user_input}")
 
-    # Prepare context for the manager
+    # Prepare lean context (session handles memory, no need for heavy context)
     context = {
         "user_id": user_id,
-        "message_history": message_history,
-        "image_urls": image_urls
+        "channel": "whatsapp"
     }
 
     # Run the manager agent with specialized tools

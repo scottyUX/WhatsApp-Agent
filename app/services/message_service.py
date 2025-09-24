@@ -63,11 +63,6 @@ class MessageService:
             media_url=media_url
         )
         
-        # Get message history for context
-        message_history = self.history_service.get_message_history(user.id, limit=10)
-        message_history.append(current_message)
-        formatted_history = self.format_message_history(message_history)
-        
         print(f"📩 WhatsApp message from {phone_number}: {user_input}")
         
         # Prepare session memory using SQLite (one session per WhatsApp user)
@@ -78,18 +73,22 @@ class MessageService:
         # Create session with SQLite backend - simpler and more reliable
         session = SQLiteSession(session_id, "conversations.db")
 
+        # Build multimodal input for manager (images as actual image inputs, not just context)
+        content = [{"type": "input_text", "text": user_input or ""}]
+        if image_urls:
+            content += [{"type": "input_image", "image_url": url} for url in image_urls]
+
         # Process the message through the agent manager with session memory
-        # IMPORTANT: Pass only the current user turn; the session maintains history
+        # IMPORTANT: Pass multimodal content; session maintains history
         result = await run_manager(
-            user_input,
+            content,
             phone_number,
-            image_urls=image_urls or [],
             session=session,
         )
         
-        print(f"🤖 Agent response: {result}")
-        print(f"🤖 Response type: {type(result)}")
-        print(f"🤖 Response length: {len(str(result)) if result else 0}")
+        print(f"Agent response: {result}")
+        print(f"Response type: {type(result)}")
+        print(f"Response length: {len(str(result)) if result else 0}")
         
         # Log the outgoing response
         self.history_service.log_outgoing_message(
