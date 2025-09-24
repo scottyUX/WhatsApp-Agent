@@ -43,7 +43,11 @@ Be clear. Be factual. Always prioritize user trust and comfort.
     tools=[FileSearchTool(vector_store_ids=[settings.VECTOR_STORE_EN])],
 )
 
-async def run_agent(user_input: str) -> str:
-    print("🗣️ English agent activated")
-    result = await Runner.run(agent, user_input)
-    return result.final_output or "Sorry, I couldn't find an English answer."
+# Export the agent and its tool for use by the manager
+knowledge_tool = agent.as_tool(
+    tool_name="knowledge_expert",
+    tool_description="Answers general questions about Istanbul Medic services, procedures, and information."
+)
+
+# Note: This agent now runs as a tool within the manager's session context
+# No standalone run_agent() function needed - session memory is handled automatically

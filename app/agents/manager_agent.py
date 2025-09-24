@@ -1,8 +1,8 @@
 from agents import Agent, Runner
 from app.services.openai_service import openai_service
-from app.agents.specialized_agents.image_agent import image_agent
-from app.agents.specialized_agents.scheduling_agent import agent as scheduling_agent
-from app.agents.language_agents.english_agent import agent as knowledge_agent
+from app.agents.specialized_agents.image_agent import image_tool
+from app.agents.specialized_agents.scheduling_agent import scheduling_tool
+from app.agents.language_agents.english_agent import knowledge_tool
 
 # Create the manager agent using the Manager pattern
 manager_agent = Agent(
@@ -16,18 +16,9 @@ CRITICAL ROUTING RULES:
 - Use knowledge_expert only for company, services, or procedure FAQs (not for personal facts).
 """,
     tools=[
-        scheduling_agent.as_tool(
-            tool_name="scheduling_expert",
-            tool_description="Handles consultation scheduling, appointments, and patient intake questions."
-        ),
-        image_agent.as_tool(
-            tool_name="image_expert", 
-            tool_description="Analyzes and processes images sent by users for hair transplant assessment."
-        ),
-        knowledge_agent.as_tool(
-            tool_name="knowledge_expert",
-            tool_description="Answers general questions about Istanbul Medic services, procedures, and information."
-        )
+        scheduling_tool,
+        image_tool,
+        knowledge_tool
     ]
 )
 

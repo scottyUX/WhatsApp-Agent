@@ -11,19 +11,14 @@ image_agent = Agent(
     model="gpt-4o",
 )
 
-async def run_agent(user_input: str, image_urls: list) -> str:
-    print("🗣️ Image agent activated")
-    content = [{"type": "input_text", "text": user_input}]
-    content += [{"type": "input_image", "image_url": url} for url in image_urls]
-    result = await Runner.run(image_agent,
-        input=[
-            {
-                "role": "user",
-                "content": content
-            }
-        ]
-    )
-    return result.final_output or "Sorry, I couldn't find an answer."
+# Export the agent and its tool for use by the manager
+image_tool = image_agent.as_tool(
+    tool_name="image_expert",
+    tool_description="Analyzes and processes images sent by users for hair transplant assessment."
+)
+
+# Note: This agent now runs as a tool within the manager's session context
+# No standalone run_agent() function needed - session memory is handled automatically
 
 def encode_image_to_base64(image_path: str) -> str:
     with open(image_path, "rb") as img_file:

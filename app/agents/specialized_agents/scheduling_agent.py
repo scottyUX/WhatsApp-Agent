@@ -94,6 +94,7 @@ BASIC DEMOGRAPHICS (ask one at a time):
 - "What's your location? (city, country)"
 
 MEDICAL BACKGROUND (ask one at a time, briefly state why it matters):
+When the user asks about medical background questions, start asking these specific questions one by one:
 - "Do you have any chronic illnesses or medical conditions? This is important for your safety."
 - "Are you currently taking any medications? We check for interactions."
 - "Do you have any allergies? This is critical for safety."
@@ -107,7 +108,12 @@ HAIR LOSS BACKGROUND (ask one at a time, explain why each is important):
 - "Is there a family history of hair loss? This affects our treatment strategy."
 - "Have you tried any previous hair loss treatments? This helps us avoid repeating ineffective treatments."
 
-IMPORTANT: Present these questions confidently and proceed through them unless the user explicitly declines. If the user says 'skip' on any question, acknowledge and continue to the next. If the user declines the entire section, respect that choice but clarify that answers help provide the most accurate and safe recommendations.
+IMPORTANT: 
+- When the user asks "What medical background do you need?" or "Can you ask me specific questions about the medical background?", immediately start asking these questions one by one.
+- Present these questions confidently and proceed through them unless the user explicitly declines.
+- If the user says 'skip' on any question, acknowledge and continue to the next.
+- If the user declines the entire section, respect that choice but clarify that answers help provide the most accurate and safe recommendations.
+- DO NOT give generic responses about medical background - ask the specific questions listed above.
 
 5. CLOSURE
 - Recap confirmed consultation details
@@ -189,62 +195,11 @@ Remember: You are Anna, not a medical professional. Always be compassionate, pro
     ]
 )
 
-async def run_agent():
-    print("Anna - Istanbul Medic Consultation Assistant")
-    print("=" * 50)
-    print("Hello! I'm Anna, your consultation assistant at Istanbul Medic.")
-    print("I'm here to help you schedule a free, no-obligation online consultation.")
-    print("Type 'exit' to quit or Ctrl+C to stop.")
-    print("=" * 50)
-    
-    try:
-        while True:
-            try:
-                user_input = input("\nYou: ").strip()
-                if user_input.lower() in {"exit", "quit", "bye", "goodbye"}:
-                    print("\nAnna: Thank you for considering Istanbul Medic. We look forward to helping you on your journey to a new you. Take care!")
-                    break
-                
-                if not user_input:
-                    continue
-                    
-                print("\nAnna: ", end="")
-                response = await Runner.run(agent, [{"role": "user", "content": user_input}])
-                print(response.final_output if hasattr(response, 'final_output') else str(response))
-                
-            except EOFError:
-                print("\n\nAnna: Thank you for considering Istanbul Medic. Take care!")
-                break
-    except KeyboardInterrupt:
-        print("\n\nAnna: Thank you for considering Istanbul Medic. Take care!")
-        return
+# Export the agent and its tool for use by the manager
+scheduling_tool = agent.as_tool(
+    tool_name="scheduling_expert",
+    tool_description="Handles consultation scheduling, appointments, and patient intake questions."
+)
 
-# Phone validation is now handled directly in Anna's prompt instructions
-
-async def handle_scheduling_request(user_message: str, user_id: str = None) -> str:
-    """
-    Handle scheduling requests from the manager agent.
-    This function integrates Anna with your existing WhatsApp agent system.
-    """
-    try:
-        # Run Anna with the user's message - validation is handled in Anna's prompt
-        response = await Runner.run(agent, [{"role": "user", "content": user_message}])
-        return response.final_output if hasattr(response, 'final_output') else str(response)
-            except Exception as e:
-        print(f"Error in scheduling agent: {e}")
-        import traceback
-        traceback.print_exc()
-        return f"I apologize, but I'm experiencing some technical difficulties. Let me connect you with a human coordinator who can assist you with scheduling your consultation."
-
-# Note: Intent detection is handled by the Manager Agent
-# This scheduling agent focuses solely on consultation scheduling
-
-# To run from script
-if __name__ == "__main__":
-    import asyncio
-    try:
-        asyncio.run(run_agent())
-    except KeyboardInterrupt:
-        print("\nAnna: Thank you for considering Istanbul Medic. Take care!")
-        except Exception as e:
-        print(f"\nAn error occurred: {e}")
+# Note: This agent now runs as a tool within the manager's session context
+# No standalone run_agent() function needed - session memory is handled automatically
