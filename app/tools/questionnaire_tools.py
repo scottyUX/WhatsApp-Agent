@@ -1,7 +1,42 @@
 from typing import Dict, Any, Optional
 from agents import function_tool
+from app.tools.profile_tools import profile_set
 
 STATE_KEY = "questionnaire_state"
+
+def _norm_age(t: str) -> Optional[str]:
+    import re
+    m = re.search(r"\b(\d{1,3})\b", t)
+    return m.group(1) if m else None
+
+def _norm_gender(t: str) -> Optional[str]:
+    s = t.strip().lower()
+    MAP = {"m":"male","man":"male","male":"male","f":"female","woman":"female","female":"female",
+           "non-binary":"non-binary","nonbinary":"non-binary","nb":"non-binary","other":"other"}
+    return MAP.get(s, s if s in MAP.values() else None)
+
+def _norm_location(t: str) -> str:
+    # very light normalization; you can swap in a geocoder later
+    return t.strip().rstrip(".")
+
+def _summary(state: Dict[str, Any]) -> str:
+    """Generate a summary of questionnaire answers."""
+    answers = state.get("answers", {})
+    if not answers:
+        return "No answers provided."
+    
+    summary_parts = []
+    for cat_id, cat_data in QUESTIONNAIRE.items():
+        cat_answers = []
+        for q in cat_data["questions"]:
+            qid = q["id"]
+            if qid in answers and answers[qid] != "skipped":
+                cat_answers.append(f"• {q['q']}: {answers[qid]}")
+        
+        if cat_answers:
+            summary_parts.append(f"{cat_data['label']}:\n" + "\n".join(cat_answers))
+    
+    return "\n\n".join(summary_parts) if summary_parts else "No answers provided."
 
 # === Questionnaire catalog ===
 QUESTIONNAIRE = {
@@ -47,8 +82,6 @@ QUESTIONNAIRE = {
         ],
     },
 }
-
-STATE_KEY = "questionnaire_state"
 
 def _default_state() -> Dict[str, Any]:
     # JSON-serializable only (no sets)
@@ -152,6 +185,32 @@ async def questionnaire_answer(user_text: str, session) -> str:
         state["answers"][q["id"]] = "skipped"
         _advance(state)
 
+    # handle restart
+    elif tl in ("restart questionnaire", "restart"):
+        state = _default_state()
+        state["active"] = True
+        _save_state(session, state)
+        cat = _current_cat(state)
+        q = QUESTIONNAIRE[cat]["questions"][0]
+        return ("Okay, restarting the questionnaire.\n\n"
+                f"{QUESTIONNAIRE[cat]['label']} — {q['q']}\n"
+                f"_Why we ask: {q['why']}_")
+
+    # handle help
+    elif tl in ("help", "examples"):
+        return ("You can answer, say 'skip', 'skip all', 'cancel questionnaire', or 'restart'.\n"
+                "Examples that help:\n"
+                "• Conditions (e.g., thyroid, anemia)\n"
+                "• Medications (e.g., finasteride, minoxidil)\n"
+                "• Prior surgeries / graft counts\n"
+                "• Family history of hair loss")
+
+    # handle done
+    elif tl in ("done", "finish"):
+        state["active"] = False
+        _save_state(session, state)
+        return "Thanks! I've noted your answers.\n\n" + _summary(state)
+
     else:
         # normal answer (with echoed-question guard)
         cat = _current_cat(state)
@@ -160,7 +219,7 @@ async def questionnaire_answer(user_text: str, session) -> str:
             _save_state(session, state)
             return "All done."
         q = QUESTIONNAIRE[cat]["questions"][state["q_idx"]]
-        if _echo_like(t, q["q"]):
+        if len(t.split()) >= 3 and _echo_like(t, q["q"]):
             _save_state(session, state)  # no mutation yet, just to be safe
             return (
                 "No worries—here are examples to guide your answer:\n"
@@ -172,6 +231,20 @@ async def questionnaire_answer(user_text: str, session) -> str:
                 "You can reply, or say 'skip'."
             )
         state["answers"][q["id"]] = t
+        
+        # Persist to profile when in Basic Info
+        if cat == "basic_info":
+            if q["id"] == "location":
+                await profile_set(session=session, location=_norm_location(t))
+            elif q["id"] == "age":
+                age = _norm_age(t)
+                if age: 
+                    await profile_set(session=session, age=age)
+            elif q["id"] == "gender":
+                g = _norm_gender(t)
+                if g: 
+                    await profile_set(session=session, gender=g)
+        
         _advance(state)
 
     # next prompt or summary
@@ -199,7 +272,22 @@ async def questionnaire_cancel(session) -> str:
 @function_tool
 async def questionnaire_status(session) -> str:
     """Check if questionnaire is active and return current state."""
-    state = session.get(STATE_KEY, {})
+    state = session.get(STATE_KEY) or {}
     if not state.get("active"):
         return "inactive"
-    return f"active: {state['category_order'][state['cat_idx']]} - question {state['q_idx']}"
+    cat_idx = state.get("cat_idx", 0)
+    order = state.get("category_order", [])
+    if cat_idx >= len(order):
+        return "active: complete"
+    return f"active: {order[cat_idx]} - question {state.get('q_idx', 0)}"
+
+@function_tool
+async def questionnaire_get_json(session) -> Dict[str, Any]:
+    """Get questionnaire state as structured data for downstream tools."""
+    state = session.get(STATE_KEY) or _default_state()
+    return {
+        "active": state["active"],
+        "answers": state.get("answers", {}),
+        "category": _current_cat(state),
+        "index": state.get("q_idx", 0)
+    }
