@@ -11,6 +11,7 @@ from app.tools.google_calendar_tools import (
     reschedule_event_by_title,
     delete_event_by_title
 )
+from app.tools.profile_tools import appointment_set
 # Phone validation is now handled directly in Anna's prompt instructions
 
 # Load environment variables
@@ -149,6 +150,15 @@ IMPORTANT:
 - Offer alternatives when appropriate
 - Be empathetic and understanding
 
+APPOINTMENT STORAGE:
+- When confirming appointment details, call appointment_set() with:
+  - iso_start: ISO datetime in Europe/Istanbul timezone (e.g., "2025-09-25T15:00:00+03:00")
+  - iso_end: ISO datetime in Europe/Istanbul timezone (e.g., "2025-09-25T16:00:00+03:00")
+  - tz: "Europe/Istanbul"
+  - meet_link: the Google Meet URL
+  - notes: "Free online consultation"
+- Always store appointment details immediately after confirmation
+
 VALIDATION RULES:
 - Check for time conflicts before rescheduling
 - Ensure new appointment times are during business hours (9 AM - 6 PM)
@@ -191,7 +201,8 @@ Remember: You are Anna, not a medical professional. Always be compassionate, pro
         delete_event,
         reschedule_event,
         reschedule_event_by_title,
-        delete_event_by_title
+        delete_event_by_title,
+        appointment_set
     ]
 )
 

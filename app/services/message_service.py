@@ -5,6 +5,7 @@ from agents import SQLiteSession
 from app.agents.manager_agent import run_manager
 from app.utils.audio_converter import transcribe_twilio_media
 from app.database.entities import Message
+from app.tools.profile_tools import sanitize_outbound
 
 
 class MessageService:
@@ -90,10 +91,13 @@ class MessageService:
         print(f"Response type: {type(result)}")
         print(f"Response length: {len(str(result)) if result else 0}")
         
+        # Sanitize the response
+        sanitized_result = sanitize_outbound(result)
+        
         # Log the outgoing response
         self.history_service.log_outgoing_message(
             user_id=user.id,
-            body=result
+            body=sanitized_result
         )
         
-        return result
+        return sanitized_result

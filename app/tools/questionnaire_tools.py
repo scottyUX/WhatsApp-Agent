@@ -1,5 +1,7 @@
 from typing import Dict, Any, Optional
-from agents import function_tool, RunContextWrapper
+from agents import function_tool
+
+STATE_KEY = "questionnaire_state"
 
 # === Questionnaire catalog ===
 QUESTIONNAIRE = {
@@ -59,8 +61,8 @@ def _default_state() -> Dict[str, Any]:
         "skipped_cats": [],     # list[str]
     }
 
-def _load_state(context: Dict[str, Any]) -> Dict[str, Any]:
-    st = context.get(STATE_KEY) or {}
+def _load_state(session) -> Dict[str, Any]:
+    st = session.get(STATE_KEY) or {}
     if not st:
         st = _default_state()
     # defensive: ensure required keys exist
@@ -68,8 +70,8 @@ def _load_state(context: Dict[str, Any]) -> Dict[str, Any]:
     base.update({k: st.get(k, base[k]) for k in base.keys()})
     return base
 
-def _save_state(context: Dict[str, Any], state: Dict[str, Any]):
-    context[STATE_KEY] = state
+def _save_state(session, state: Dict[str, Any]):
+    session.set(STATE_KEY, state)
 
 def _current_cat(state: Dict[str, Any]) -> Optional[str]:
     order = state["category_order"]
@@ -101,14 +103,13 @@ def _echo_like(answer: str, question: str) -> bool:
     return len(a & q) / max(1, len(a)) > 0.6
 
 @function_tool
-async def questionnaire_start(wrapper: RunContextWrapper) -> str:
+async def questionnaire_start(session) -> str:
     """
     Start the structured questionnaire; asks exactly one question at a time.
     """
-    context = wrapper.context or {}
     state = _default_state()
     state["active"] = True
-    _save_state(context, state)
+    _save_state(session, state)
 
     cat = _current_cat(state)
     q = QUESTIONNAIRE[cat]["questions"][0]
@@ -120,12 +121,11 @@ async def questionnaire_start(wrapper: RunContextWrapper) -> str:
     )
 
 @function_tool
-async def questionnaire_answer(wrapper: RunContextWrapper, user_text: str) -> str:
+async def questionnaire_answer(user_text: str, session) -> str:
     """
     Record an answer, handle skip/skip all, and return the next question or a summary.
     """
-    context = wrapper.context or {}
-    state = _load_state(context)
+    state = _load_state(session)
     
     if not state["active"]:
         return "The questionnaire isn't active. Say 'start questionnaire' if you'd like to begin."
@@ -146,7 +146,7 @@ async def questionnaire_answer(wrapper: RunContextWrapper, user_text: str) -> st
         cat = _current_cat(state)
         if cat is None:
             state["active"] = False
-            _save_state(context, state)
+            _save_state(session, state)
             return "All done."
         q = QUESTIONNAIRE[cat]["questions"][state["q_idx"]]
         state["answers"][q["id"]] = "skipped"
@@ -157,11 +157,11 @@ async def questionnaire_answer(wrapper: RunContextWrapper, user_text: str) -> st
         cat = _current_cat(state)
         if cat is None:
             state["active"] = False
-            _save_state(context, state)
+            _save_state(session, state)
             return "All done."
         q = QUESTIONNAIRE[cat]["questions"][state["q_idx"]]
         if _echo_like(t, q["q"]):
-            _save_state(context, state)  # no mutation yet, just to be safe
+            _save_state(session, state)  # no mutation yet, just to be safe
             return (
                 "No worries—here are examples to guide your answer:\n"
                 "• Diagnosed conditions (e.g., thyroid, anemia)\n"
@@ -178,30 +178,28 @@ async def questionnaire_answer(wrapper: RunContextWrapper, user_text: str) -> st
     cat = _current_cat(state)
     if cat is None:
         state["active"] = False
-        _save_state(context, state)
+        _save_state(session, state)
         return "Thanks! I've noted your answers.\n\n" + _summary(state)
 
     q = QUESTIONNAIRE[cat]["questions"][state["q_idx"]]
-    _save_state(context, state)
+    _save_state(session, state)
     return (
         f"{QUESTIONNAIRE[cat]['label']} — {q['q']}\n"
         f"_Why we ask: {q['why']}_"
     )
 
 @function_tool
-async def questionnaire_cancel(wrapper: RunContextWrapper) -> str:
+async def questionnaire_cancel(session) -> str:
     """Cancel the questionnaire gracefully."""
-    context = wrapper.context or {}
-    state = _load_state(context)
+    state = _load_state(session)
     state["active"] = False
-    _save_state(context, state)
+    _save_state(session, state)
     return "No problem—I've stopped the questionnaire. We can proceed without it."
 
 @function_tool
-async def questionnaire_status(wrapper: RunContextWrapper) -> str:
+async def questionnaire_status(session) -> str:
     """Check if questionnaire is active and return current state."""
-    context = wrapper.context or {}
-    state = context.get(STATE_KEY, {})
+    state = session.get(STATE_KEY, {})
     if not state.get("active"):
         return "inactive"
     return f"active: {state['category_order'][state['cat_idx']]} - question {state['q_idx']}"
