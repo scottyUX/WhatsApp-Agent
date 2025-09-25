@@ -1,4 +1,4 @@
-from agents import Agent, ModelSettings, FileSearchTool, Runner
+from agents import Agent, ModelSettings, FileSearchTool, Runner, RunResult
 from app.config.settings import settings
 
 agent = Agent(
@@ -39,11 +39,15 @@ When asked how to get started:
 
 Be clear. Be factual. Always prioritize user trust and comfort.
 """,
-    model="gpt-4o",
+    model=settings.LANGUAGE_AGENT_MODEL,
     tools=[FileSearchTool(vector_store_ids=[settings.VECTOR_STORE_EN])],
+    model_settings=ModelSettings(
+        temperature=settings.LANGUAGE_AGENT_TEMPERATURE,
+        max_tokens=settings.LANGUAGE_AGENT_MAX_TOKENS
+    ),
 )
 
 async def run_agent(user_input: str) -> str:
-    print("🗣️ English agent activated")
-    result = await Runner.run(agent, user_input)
+    print("English agent activated")
+    result: RunResult = await Runner.run(agent, user_input)
     return result.final_output or "Sorry, I couldn't find an English answer."

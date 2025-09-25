@@ -1,21 +1,30 @@
+import typing
 import uuid
-from sqlalchemy import Column, String, DateTime, ForeignKey, CheckConstraint
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.sql import func
+from datetime import datetime
+from typing import Optional
 
-from app.database.db import Base
+from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from .base import Base
+from .mixins import IdMixin
+
+if typing.TYPE_CHECKING:
+    from .conversation import Conversation
+    from .media import Media
 
 
-class Message(Base):
+class Message(Base, IdMixin):
     __tablename__ = "messages"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
-    direction = Column(String, nullable=False)  # "incoming" | "outgoing"
-    body = Column(String, nullable=True)
-    media_url = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # Columns
+    conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("conversations.id"), nullable=False)
+    sender: Mapped[str] = mapped_column(String, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
 
-    __table_args__ = (
-        CheckConstraint("direction in ('incoming','outgoing')", name="direction_check"),
-    )
+    # Relationships
+    conversation: Mapped["Conversation"] = relationship("Conversation", back_populates="messages", init=False)
+    media: Mapped[list["Media"]] = relationship("Media", back_populates="message", default_factory=list, init=False)
+
+    def __repr__(self):
+        return f"<Message {self.id}>"

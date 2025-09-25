@@ -13,3 +13,6 @@ elevenlabs
 slowapi
 sqlalchemy
 psycopg2-binary
+langchain
+langchain-openai
+langchain-community

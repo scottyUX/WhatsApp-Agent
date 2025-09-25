@@ -39,11 +39,15 @@ Bei Fragen zum Buchungsprozess:
 
 Sei klar. Sei faktenbasiert. Setze immer das Vertrauen und die Sicherheit des Patienten an erste Stelle.
 """,
-    model="gpt-4o",
+    model=settings.LANGUAGE_AGENT_MODEL,
     tools=[FileSearchTool(vector_store_ids=[settings.VECTOR_STORE_DE])],
+    model_settings=ModelSettings(
+        temperature=settings.LANGUAGE_AGENT_TEMPERATURE,
+        max_tokens=settings.LANGUAGE_AGENT_MAX_TOKENS
+    ),
 )
 
 async def run_agent(user_input: str) -> str:
-    print("🔊 German agent activated")
+    print("German agent activated")
     result = await Runner.run(agent, user_input)
     return result.final_output or "Entschuldigung, ich konnte keine Antwort finden."

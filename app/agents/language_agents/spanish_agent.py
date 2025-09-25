@@ -39,8 +39,12 @@ Si preguntan cómo comenzar:
 
 Sé claro. Sé preciso. Da prioridad a la confianza y tranquilidad del paciente.
 """,
-    model="gpt-4o",
+    model=settings.LANGUAGE_AGENT_MODEL,
     tools=[FileSearchTool(vector_store_ids=[settings.VECTOR_STORE_ES])],
+    model_settings=ModelSettings(
+        temperature=settings.LANGUAGE_AGENT_TEMPERATURE,
+        max_tokens=settings.LANGUAGE_AGENT_MAX_TOKENS
+    ),
 )
 
 async def run_agent(user_input: str) -> str:
