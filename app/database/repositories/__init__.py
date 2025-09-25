@@ -4,3 +4,6 @@ from .media_repository import MediaRepository
 from .connection_repository import ConnectionRepository
 from .conversation_repository import ConversationRepository
 from .connection_change_repository import ConnectionChangeRepository
+from .patient_profile_repository import PatientProfileRepository
+from .medical_background_repository import MedicalBackgroundRepository
+from .conversation_state_repository import ConversationStateRepository
