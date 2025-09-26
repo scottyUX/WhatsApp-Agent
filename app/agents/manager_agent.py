@@ -5,15 +5,15 @@ from app.agents.specialized_agents.scheduling_agent import scheduling_tool
 from app.agents.language_agents.english_agent import knowledge_tool
 from app.tools.questionnaire_tools import (
     questionnaire_start,
-    questionnaire_answer,
-    questionnaire_status,
-    questionnaire_cancel
+    # questionnaire_answer,
+    # questionnaire_status,
+    # questionnaire_cancel
 )
 from app.tools.profile_tools import (
-    profile_set,
-    profile_get,
-    appointment_set,
-    appointment_get,
+    # profile_set,
+    # profile_get,
+    # appointment_set,
+    # appointment_get,
     sanitize_outbound
 )
 
@@ -103,13 +103,13 @@ STYLE
         image_tool,
         knowledge_tool,
         questionnaire_start,
-        questionnaire_answer,
-        questionnaire_status,
-        questionnaire_cancel,
-        profile_set,
-        profile_get,
-        appointment_set,
-        appointment_get
+        # questionnaire_answer,
+        # questionnaire_status,
+        # questionnaire_cancel,
+        # profile_set,
+        # profile_get,
+        # appointment_set,
+        # appointment_get
     ]
 )
 
