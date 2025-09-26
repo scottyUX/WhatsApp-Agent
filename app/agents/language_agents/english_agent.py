@@ -1,7 +1,10 @@
-from agents import Agent, ModelSettings, FileSearchTool, Runner, RunResult
+from agents import Agent, ModelSettings, FileSearchTool, Runner, RunResult, ItemHelpers
+from openai.types.responses import ResponseTextDeltaEvent
+from typing import AsyncGenerator
+
 from app.config.settings import settings
 
-agent = Agent(
+english_agent = Agent(
     name="EnglishAgent",
     instructions="""
 You are an expert, multilingual assistant for IstanbulMedic (formerly Longevita), a UK-registered medical tourism provider offering cosmetic procedures in Istanbul and London. Your role is to provide accurate, helpful, and concise answers to patients based on the provided vector store knowledge.
@@ -46,8 +49,3 @@ Be clear. Be factual. Always prioritize user trust and comfort.
         max_tokens=settings.LANGUAGE_AGENT_MAX_TOKENS
     ),
 )
-
-async def run_agent(user_input: str) -> str:
-    print("English agent activated")
-    result: RunResult = await Runner.run(agent, user_input)
-    return result.final_output or "Sorry, I couldn't find an English answer."

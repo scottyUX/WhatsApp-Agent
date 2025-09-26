@@ -18,11 +18,15 @@ app = FastAPI(
     openapi_url="/openapi.json" if settings.DEBUG else None
 )
 
-origins = [
-  "http://localhost",
-  "http://localhost:8000",
-  # TODO: the backend domain will be added here when deployed
-]
+# Set CORS origins based on DEBUG mode
+if settings.DEBUG:
+    origins = ["*"]  # Allow all origins in debug mode
+else:
+    origins = [
+        "http://localhost",
+        "http://localhost:8000",
+        # TODO: other domains will be added here when deployed
+    ]
 
 # Middlewares
 app.add_middleware(

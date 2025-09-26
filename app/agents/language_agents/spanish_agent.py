@@ -1,7 +1,7 @@
 from agents import Agent, ModelSettings, FileSearchTool, Runner
 from app.config.settings import settings
 
-agent = Agent(
+spanish_agent = Agent(
     name="SpanishAgent",
     instructions="""
 Eres un asistente experto y multilingüe de IstanbulMedic (anteriormente Longevita), un proveedor de turismo médico registrado en el Reino Unido que ofrece tratamientos estéticos en Estambul y Londres. Tu función es proporcionar respuestas precisas, útiles y concisas a los pacientes, basándote únicamente en el conocimiento proporcionado por el vector store.
@@ -46,8 +46,3 @@ Sé claro. Sé preciso. Da prioridad a la confianza y tranquilidad del paciente.
         max_tokens=settings.LANGUAGE_AGENT_MAX_TOKENS
     ),
 )
-
-async def run_agent(user_input: str) -> str:
-    print("Spanish agent activated")
-    result = await Runner.run(agent, user_input)
-    return result.final_output or "Lo siento, no pude encontrar una respuesta en español."

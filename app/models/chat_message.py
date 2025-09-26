@@ -13,3 +13,10 @@ class ChatMessageRequest:
 @dataclass
 class ChatMessageResponse:
     content: str
+
+
+@dataclass
+class ChatStreamChunk:
+    content: str
+    timestamp: Optional[str] = None
+    is_final: bool = False
