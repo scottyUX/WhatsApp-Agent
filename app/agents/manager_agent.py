@@ -124,7 +124,9 @@ async def run_manager(user_input, user_id: str, session=None) -> str:
     Returns:
         Agent response string
     """
-    print(f"Message from {user_id}: {user_input}")
+    print(f"🔵 MANAGER AGENT: Starting with user {user_id}")
+    print(f"🔵 MANAGER AGENT: Input: {user_input}")
+    print(f"🔵 MANAGER AGENT: Session available: {session is not None}")
 
     # Prepare lean context (session handles memory, no need for heavy context)
     context = {
@@ -132,7 +134,11 @@ async def run_manager(user_input, user_id: str, session=None) -> str:
         "channel": "whatsapp"
     }
 
+    print(f"🔵 MANAGER AGENT: Context: {context}")
+    print(f"🔵 MANAGER AGENT: Available tools: {[tool.name for tool in manager_agent.tools]}")
+
     # Run the manager agent with specialized tools
+    print(f"🔵 MANAGER AGENT: Calling Runner.run...")
     response = await Runner.run(
         manager_agent, 
         user_input,
@@ -140,5 +146,13 @@ async def run_manager(user_input, user_id: str, session=None) -> str:
         session=session,
     )
     
+    print(f"🔵 MANAGER AGENT: Response received: {type(response)}")
+    print(f"🔵 MANAGER AGENT: Response attributes: {dir(response)}")
+    
     result = response.final_output if hasattr(response, 'final_output') else str(response)
-    return sanitize_outbound(result)
+    print(f"🔵 MANAGER AGENT: Final result: {result}")
+    print(f"🔵 MANAGER AGENT: Result type: {type(result)}")
+    
+    sanitized = sanitize_outbound(result)
+    print(f"🔵 MANAGER AGENT: Sanitized result: {sanitized}")
+    return sanitized

@@ -45,16 +45,24 @@ async def appointment_set(iso_start: str,
                           meet_link: Optional[str] = None,
                           notes: Optional[str] = None) -> str:
     """Save the confirmed appointment details."""
+    print(f"🟢 APPOINTMENT_SET: Called with iso_start={iso_start}, iso_end={iso_end}, tz={tz}")
+    print(f"🟢 APPOINTMENT_SET: meet_link={meet_link}, notes={notes}")
+    
     # In serverless environment, we'll just return confirmation
     # In a real implementation, you'd save to a database
-    return f"Appointment saved for {iso_start} in {tz} timezone."
+    result = f"Appointment saved for {iso_start} in {tz} timezone."
+    print(f"🟢 APPOINTMENT_SET: Returning: {result}")
+    return result
 
 @function_tool
 async def appointment_get() -> str:
     """Return a friendly one-liner about the saved appointment, if any."""
+    print(f"🟡 APPOINTMENT_GET: Called")
     # In serverless environment, we can't retrieve stored appointments
     # In a real implementation, you'd query a database
-    return "No appointment details available in current session."
+    result = "No appointment details available in current session."
+    print(f"🟡 APPOINTMENT_GET: Returning: {result}")
+    return result
 
 def sanitize_outbound(text: str) -> str:
     """Clean up WhatsApp artifacts and junk text."""

@@ -201,8 +201,8 @@ Remember: You are Anna, not a medical professional. Always be compassionate, pro
         delete_event,
         reschedule_event,
         reschedule_event_by_title,
-        delete_event_by_title
-        # appointment_set  # Temporarily disabled - handled by manager agent
+        delete_event_by_title,
+        appointment_set
     ]
 )
 

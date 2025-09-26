@@ -62,10 +62,14 @@ def create_calendar_event(summary: str, start_datetime: str, duration_minutes: i
         - Sends calendar invitation to attendee
         - Returns event time and Meet link for easy sharing
     """
+    print(f"🔴 CREATE_CALENDAR_EVENT: Called with summary={summary}, start_datetime={start_datetime}")
+    print(f"🔴 CREATE_CALENDAR_EVENT: duration_minutes={duration_minutes}, attendee_email={attendee_email}")
+    
     try:
         service = get_calendar_service()
         start = datetime.datetime.fromisoformat(start_datetime)
         end = start + datetime.timedelta(minutes=duration_minutes)
+        print(f"🔴 CREATE_CALENDAR_EVENT: Parsed start={start}, end={end}")
 
         # Base event structure
         event = {
@@ -112,6 +116,7 @@ def create_calendar_event(summary: str, start_datetime: str, duration_minutes: i
         else:
             response += f"\n Calendar Link: {result.get('htmlLink')}"
 
+        print(f"🔴 CREATE_CALENDAR_EVENT: Success! Returning: {response}")
         return response
     except Exception as e:
         return f"Failed to create event: {str(e)}"

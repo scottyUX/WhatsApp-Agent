@@ -140,12 +140,15 @@ async def questionnaire_start() -> str:
     """
     Start the structured questionnaire; asks exactly one question at a time.
     """
-    return (
+    print(f"🟠 QUESTIONNAIRE_START: Called")
+    result = (
         "Thanks! This short, optional questionnaire helps our specialist prepare.\n"
         "You can reply with 'skip' to skip any question, or 'skip all' to skip the entire section.\n\n"
         "Basic Info — Which city and country are you currently in?\n"
         "_Why we ask: Knowing your location helps us plan time zones and logistics._"
     )
+    print(f"🟠 QUESTIONNAIRE_START: Returning: {result}")
+    return result
 
 # @function_tool
 async def questionnaire_answer(user_text: str, session: Optional[dict] = None) -> str:

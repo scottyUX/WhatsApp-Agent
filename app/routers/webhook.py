@@ -23,6 +23,11 @@ async def istanbulMedic_webhook(request: Request, message_service: MessageServic
         image_urls = webhook_data.get_image_urls()
         audio_urls = webhook_data.get_audio_urls()
         
+        print(f"🟣 WEBHOOK: Processing message from {user_id}")
+        print(f"🟣 WEBHOOK: User input: {user_input}")
+        print(f"🟣 WEBHOOK: Image URLs: {image_urls}")
+        print(f"🟣 WEBHOOK: Audio URLs: {audio_urls}")
+        
         # Use the message service to handle the incoming message
         result = await message_service.handle_incoming_message(
             phone_number=user_id,
@@ -31,9 +36,9 @@ async def istanbulMedic_webhook(request: Request, message_service: MessageServic
             audio_urls=audio_urls
         )
         
-        print(f"📤 Webhook result: {result}")
-        print(f"📤 Result type: {type(result)}")
-        print(f"📤 Result length: {len(str(result)) if result else 0}")
+        print(f"🟣 WEBHOOK: Message service returned: {result}")
+        print(f"🟣 WEBHOOK: Result type: {type(result)}")
+        print(f"🟣 WEBHOOK: Result length: {len(str(result)) if result else 0}")
         
         xml_response = f"""
         <Response>
