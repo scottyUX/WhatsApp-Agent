@@ -1,161 +1,156 @@
-from agents import Agent, Runner
-from app.services.openai_service import openai_service
-from app.agents.specialized_agents.image_agent import image_tool
-from app.agents.specialized_agents.scheduling_agent import scheduling_tool
-from app.agents.language_agents.english_agent import knowledge_tool
-from app.tools.questionnaire_tools import (
-    questionnaire_start,
-    # questionnaire_answer,
-    # questionnaire_status,
-    # questionnaire_cancel
-)
-from app.tools.profile_tools import (
-    # profile_set,
-    # profile_get,
-    appointment_set,
-    appointment_get,
-    sanitize_outbound
-)
+"""
+Manager Router with Sticky Routes (session lock):
+- Determine intent (scheduling / image / knowledge / fallback) on first message.
+- Once locked to an agent, keep routing to that agent until flow completes.
+- Never generate user-facing text.
 
-# Create the manager agent using the Manager pattern
-manager_agent = Agent(
-    name="ManagerAgent",
-    instructions="""ROLE
-ROLE
-You are the Manager assistant for Istanbul Medic. You orchestrate between specialist tools and provide a concise, helpful final reply. 
-Do not mention tools or the multi-agent system.
+Integration notes:
+- message_service.py should call: await run_manager(user_input, context, session)
+- context is expected to include { "user_id": "...", "channel": "whatsapp" } (or similar)
+"""
 
-PRIVACY & PII (SESSION-BACKED TOOLS)
-• You may repeat back user-provided PII only if retrieved via tools. Do not guess.
-• If a field isn't on file, ask the user to provide or confirm it.
-• When user states a profile fact in free text (e.g., "I live in Istanbul", "I am 53", "my email is …"), call profile_set(...) with the value before replying.
+from __future__ import annotations
+import re
+import time
+import logging
+from typing import Any, Dict, Optional, Tuple
 
-PII RECALL (USE TOOLS)
-• "What is my (email|phone|age|gender|city|name)?" → call profile_get(field=...).
-• "remind me my appointment" → call appointment_get().
-• Always use tools for PII recall - never search raw text.
+# Import your SDK runner and specialized agents.
+from agents import Runner
 
-PII STORAGE (AUTOMATIC)
-• When user provides: "I live in [location]" → call profile_set(location=...)
-• When user provides: "I am [age] years old" → call profile_set(age=...)
-• When user provides: "I am a [gender]" → call profile_set(gender=...)
-• When user provides: "my email is [email]" → call profile_set(email=...)
-• When user provides: "my name is [name]" → call profile_set(name=...)
-• When user provides: "my phone is [phone]" → call profile_set(phone=...)
+# Required agents (adjust to your module paths/names)
+from app.agents.specialized_agents.scheduling_agent import agent as scheduling_agent
+from app.agents.specialized_agents.image_agent import image_agent
 
-SESSION MEMORY
-• Use tools for all data recall - profile_get for user data, appointment_get for appointments.
-• Never search raw text or conversation history for PII or appointment details.
-• If tools return "(no field on file)", ask the user to provide the information.
+# Optional: if you have a knowledge/general agent; otherwise we route to scheduling by default or raise.
+try:
+    from app.agents.language_agents.english_agent import agent as knowledge_agent
+except Exception:
+    knowledge_agent = None
 
-APPOINTMENTS
-• For scheduling, rescheduling, canceling, or viewing appointments:
-  – Use the scheduling_expert tool to propose or manage slots.
-  – When confirming appointment details, call appointment_set(...) with the details.
-  – Include both clinic time (Istanbul, UTC+3) and user's local time (if known).
-• For "remind me my appointment":
-  – Call appointment_get() to retrieve saved appointment details.
-  – If no appointment found, offer to schedule a new one.
+log = logging.getLogger("manager_router")
+log.setLevel(logging.INFO)
 
-APPOINTMENT STORAGE (AUTOMATIC)
-• When confirming: "Your appointment is [date] at [time]" → call appointment_set(iso_start=..., tz="Europe/Istanbul", meet_link=...)
-• Always store appointment details immediately after confirmation.
+# ---------- Intent regex (used only when no lock exists) ----------
+SCHEDULING_INTENT = re.compile(r"\b(schedule|booking|book|appointment|reschedul(e|ing)|consult(ation)?|availability|slot[s]?|times?)\b", re.I)
+IMAGE_INTENT = re.compile(r"\b(photo|image|picture|pic|jpeg|png|edit|enhance|retouch|filter|background|remove)\b", re.I)
+RESET_KEYWORDS = re.compile(r"\b(cancel|stop|end|menu|main menu|start over|reset|quit|exit)\b", re.I)
 
-TOOL COORDINATION
-• Always pass the active session into tools so they see the same conversation history you use.
-• Do not duplicate or overwrite data; let each tool add to the session record.
-• When multiple tools are needed, coordinate them within one reply (e.g., scheduling_expert for availability + knowledge_expert for procedure details).
+# ---------- Agent registry ----------
+AGENTS: Dict[str, Any] = {"scheduling": scheduling_agent, "image": image_agent}
+if knowledge_agent is not None:
+    AGENTS["knowledge"] = knowledge_agent
 
-ROUTING RULES
-• PII recall questions (name, phone, email, age, gender, city) → rely on session memory, quote exactly.
-• Appointments (view, schedule, reschedule, cancel) → ALWAYS call scheduling_expert. Use session memory for confirmations and reminders.
-• Image uploads or analysis requests → image_expert.
-• Company, services, or procedure FAQs → knowledge_expert.
-• Other small-talk or non-tool queries → answer directly.
+# ---------- Simple session store (swap with Redis/Postgres in prod) ----------
+_LOCK_TTL_SECONDS = 24 * 60 * 60  # 24h
+_session_store: Dict[str, Dict[str, Any]] = {}  # { wa_id: {"active_agent": str, "locked_at": int} }
 
-CRITICAL: When user mentions "schedule", "appointment", "booking", "consultation" → IMMEDIATELY call scheduling_expert tool. Do NOT handle scheduling requests yourself.
+def _now() -> int:
+    return int(time.time())
 
-QUESTIONNAIRE ROUTING
-• After confirming appointment details (name, phone, email, time), ask: "Would you like to answer a few optional questions to help our specialist prepare? We'll go one at a time, and you can say 'skip' or 'skip all' anytime."
-• If user says "yes", "sure", "okay", "I'd like to answer", or similar agreement, IMMEDIATELY call questionnaire_start()
-• Check questionnaire status with questionnaire_status() before processing any user message
-• While questionnaire is active, route all user messages to questionnaire_answer(user_text=...)
-• If user says "cancel questionnaire", call questionnaire_cancel()
-• Never block scheduling if user declines questionnaire - proceed normally
+def _get_lock(wa_id: str) -> Optional[str]:
+    s = _session_store.get(wa_id)
+    if not s:
+        return None
+    if _now() - s.get("locked_at", 0) > _LOCK_TTL_SECONDS:
+        _session_store.pop(wa_id, None)
+        return None
+    return s.get("active_agent")
 
-IMPORTANT: When user agrees to answer questions, you MUST call questionnaire_start() to begin the structured flow.
+def _set_lock(wa_id: str, agent_key: str) -> None:
+    _session_store[wa_id] = {"active_agent": agent_key, "locked_at": _now()}
 
-TIME & DATE CLARITY
-• Always specify time zones when giving appointment times.
-• State explicitly: “Clinic time (UTC+3, Istanbul)” and “Your local time (if known)”.
+def _clear_lock(wa_id: str) -> None:
+    _session_store.pop(wa_id, None)
 
-ERROR HANDLING
-• If info is missing, ask a single clear follow-up.
-• If ambiguous, give the most likely interpretation and request confirmation.
+# ---------- Text extraction ----------
+def _extract_text(user_input: Any) -> str:
+    if isinstance(user_input, str):
+        return user_input
+    if isinstance(user_input, list):
+        for item in user_input:
+            if isinstance(item, dict) and item.get("type") == "message":
+                c = item.get("content")
+                if isinstance(c, str):
+                    return c
+    return str(user_input or "")
 
-STYLE
-• Be concise, supportive, and action-oriented.
-• Use bullet points for lists (2–6 items).
-• When confirming sensitive details or bookings, summarize them in a short checklist for easy verification.
+def _detect_intent(text: str) -> str:
+    if SCHEDULING_INTENT.search(text): return "scheduling"
+    if IMAGE_INTENT.search(text):      return "image"
+    return "knowledge" if "knowledge" in AGENTS else "scheduling"
 
+# ---------- Public entry ----------
+async def run_manager(user_input: Any, context: Dict[str, Any], session: Optional[Any] = None) -> Any:
+    wa_id = (context or {}).get("user_id") or ""
+    text  = _extract_text(user_input)
 
-""",
-    tools=[
-        scheduling_tool,
-        image_tool,
-        knowledge_tool,
-        questionnaire_start,
-        # questionnaire_answer,
-        # questionnaire_status,
-        # questionnaire_cancel,
-        # profile_set,
-        # profile_get,
-        appointment_set,
-        appointment_get
-    ]
-)
+    log.info("🔵 MANAGER ROUTER: user_id=%s", wa_id)
+    log.info("🔵 MANAGER ROUTER: Input: %r", user_input)
 
-async def run_manager(user_input, user_id: str, session=None) -> str:
-    """Run the manager agent with specialized tools.
-    
-    Args:
-        user_input: Can be a string or multimodal content list
-        user_id: User identifier
-        session: SQLiteSession for conversation memory
-        
-    Returns:
-        Agent response string
-    """
-    print(f"🔵 MANAGER AGENT: Starting with user {user_id}")
-    print(f"🔵 MANAGER AGENT: Input: {user_input}")
-    print(f"🔵 MANAGER AGENT: Session available: {session is not None}")
+    # 1) Reset handling: user wants out → clear lock
+    if RESET_KEYWORDS.search(text):
+        _clear_lock(wa_id)
+        log.info("🔄 MANAGER ROUTER: Reset keywords detected, cleared lock")
+        # After reset, fall through to fresh intent detection
 
-    # Prepare lean context (session handles memory, no need for heavy context)
-    context = {
-        "user_id": user_id,
-        "channel": "whatsapp"
-    }
+    # 2) If there is an active lock, honor it (sticky routing)
+    active = _get_lock(wa_id)
+    if active and active in AGENTS:
+        log.info("🔒 MANAGER ROUTER: Sticky route to %s", active)
+        result = await _run_leaf(AGENTS[active], user_input, context, session)
+        _maybe_release_lock(wa_id, result)  # release if leaf says it's done
+        return result
 
-    print(f"🔵 MANAGER AGENT: Context: {context}")
-    print(f"🔵 MANAGER AGENT: Available tools: {[tool.name for tool in manager_agent.tools]}")
-    print(f"🔵 MANAGER AGENT: Input contains 'schedule' or 'appointment': {'schedule' in str(user_input).lower() or 'appointment' in str(user_input).lower()}")
+    # 3) No lock → detect intent once and lock
+    intent = _detect_intent(text)
+    _set_lock(wa_id, intent)
+    log.info("🔐 MANAGER ROUTER: New lock set: %s", intent)
+    result = await _run_leaf(AGENTS[intent], user_input, context, session)
+    _maybe_release_lock(wa_id, result)
+    return result
 
-    # Run the manager agent with specialized tools
-    print(f"🔵 MANAGER AGENT: Calling Runner.run...")
-    response = await Runner.run(
-        manager_agent, 
+async def _run_leaf(agent_obj: Any, user_input: Any, context: Dict[str, Any], session: Optional[Any]) -> Any:
+    return await Runner.run(
+        agent_obj,
         user_input,
         context=context,
         session=session,
     )
+
+def _maybe_release_lock(wa_id: str, leaf_result: Any) -> None:
+    """
+    Convention: if the leaf agent returns a dict with {"router_done": True}
+    OR {"booking_confirmed": True}, we release the lock.
+    You can extend this with whatever your agents already return.
+    """
+    try:
+        if isinstance(leaf_result, dict):
+            if leaf_result.get("router_done") or leaf_result.get("booking_confirmed"):
+                _clear_lock(wa_id)
+                log.info("🔓 MANAGER ROUTER: Lock released due to completion signal")
+                return
+        # You can also detect special strings if you don't return dicts:
+        if isinstance(leaf_result, str) and "Booking confirmed" in leaf_result:
+            _clear_lock(wa_id)
+            log.info("🔓 MANAGER ROUTER: Lock released due to completion string")
+    except Exception:
+        pass
+
+# Legacy compatibility - keep the old function signature for message_service.py
+async def run_manager_legacy(user_input, user_id: str, session=None) -> str:
+    """
+    Legacy wrapper for backward compatibility with message_service.py
+    """
+    context = {
+        "user_id": user_id,
+        "channel": "whatsapp"
+    }
     
-    print(f"🔵 MANAGER AGENT: Response received: {type(response)}")
-    print(f"🔵 MANAGER AGENT: Response attributes: {dir(response)}")
+    result = await run_manager(user_input, context, session)
     
-    result = response.final_output if hasattr(response, 'final_output') else str(response)
-    print(f"🔵 MANAGER AGENT: Final result: {result}")
-    print(f"🔵 MANAGER AGENT: Result type: {type(result)}")
-    
-    sanitized = sanitize_outbound(result)
-    print(f"🔵 MANAGER AGENT: Sanitized result: {sanitized}")
-    return sanitized
+    # Extract final output from result
+    if hasattr(result, 'final_output'):
+        return str(result.final_output)
+    else:
+        return str(result)

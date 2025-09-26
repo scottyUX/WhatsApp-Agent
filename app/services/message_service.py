@@ -85,7 +85,7 @@ class MessageService:
         if image_urls:
             content += [{"type": "message", "role": "user", "content": f"[Image: {url}]"} for url in image_urls]
 
-        result = await run_manager(
+        result = await run_manager_legacy(
             content,
             phone_number,
             session=session,
