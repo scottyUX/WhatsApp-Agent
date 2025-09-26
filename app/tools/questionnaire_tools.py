@@ -136,27 +136,18 @@ def _echo_like(answer: str, question: str) -> bool:
     return len(a & q) / max(1, len(a)) > 0.6
 
 @function_tool
-async def questionnaire_start(session: Optional[dict] = None) -> str:
+async def questionnaire_start() -> str:
     """
     Start the structured questionnaire; asks exactly one question at a time.
-    
-    Parameters:
-    - session: Optional session data for storing questionnaire state
     """
-    state = _default_state()
-    state["active"] = True
-    _save_state(session, state)
-
-    cat = _current_cat(state)
-    q = QUESTIONNAIRE[cat]["questions"][0]
     return (
         "Thanks! This short, optional questionnaire helps our specialist prepare.\n"
         "You can reply with 'skip' to skip any question, or 'skip all' to skip the entire section.\n\n"
-        f"{QUESTIONNAIRE[cat]['label']} — {q['q']}\n"
-        f"_Why we ask: {q['why']}_"
+        "Basic Info — Which city and country are you currently in?\n"
+        "_Why we ask: Knowing your location helps us plan time zones and logistics._"
     )
 
-@function_tool
+# @function_tool
 async def questionnaire_answer(user_text: str, session: Optional[dict] = None) -> str:
     """
     Record an answer, handle skip/skip all, and return the next question or a summary.
@@ -268,7 +259,7 @@ async def questionnaire_answer(user_text: str, session: Optional[dict] = None) -
         f"_Why we ask: {q['why']}_"
     )
 
-@function_tool
+# @function_tool
 async def questionnaire_cancel(session: Optional[dict] = None) -> str:
     """Cancel the questionnaire gracefully."""
     state = _load_state(session)
@@ -276,7 +267,7 @@ async def questionnaire_cancel(session: Optional[dict] = None) -> str:
     _save_state(session, state)
     return "No problem—I've stopped the questionnaire. We can proceed without it."
 
-@function_tool
+# @function_tool
 async def questionnaire_status(session: Optional[dict] = None) -> str:
     """Check if questionnaire is active and return current state."""
     state = session.get(STATE_KEY) or {}
@@ -288,7 +279,7 @@ async def questionnaire_status(session: Optional[dict] = None) -> str:
         return "active: complete"
     return f"active: {order[cat_idx]} - question {state.get('q_idx', 0)}"
 
-@function_tool
+# @function_tool
 async def questionnaire_get_json(session: Optional[dict] = None) -> Dict[str, Any]:
     """Get questionnaire state as structured data for downstream tools."""
     state = session.get(STATE_KEY) or _default_state()
