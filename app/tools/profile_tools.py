@@ -14,7 +14,7 @@ def _ensure_profile(session) -> Dict[str, Any]:
     return prof
 
 @function_tool
-async def profile_set(session,
+async def profile_set(session: Any,
                       name: Optional[str] = None,
                       phone: Optional[str] = None,
                       email: Optional[str] = None,
@@ -32,7 +32,7 @@ async def profile_set(session,
     return "Saved."
 
 @function_tool
-async def profile_get(field: str, session) -> str:
+async def profile_get(field: str, session: Any) -> str:
     """Return a single field from profile or a helpful fallback."""
     prof = _ensure_profile(session)
     val = prof.get(field.lower())
@@ -44,13 +44,13 @@ async def appointment_set(iso_start: str,
                           tz: Optional[str] = "Europe/Istanbul",
                           meet_link: Optional[str] = None,
                           notes: Optional[str] = None,
-                          session=None) -> str:
+                          session: Any = None) -> str:
     """Save the confirmed appointment to session."""
     session.set(APPT_KEY, {"iso_start": iso_start, "iso_end": iso_end, "tz": tz, "meet_link": meet_link, "notes": notes})
     return "Appointment saved."
 
 @function_tool
-async def appointment_get(session) -> str:
+async def appointment_get(session: Any) -> str:
     """Return a friendly one-liner about the saved appointment, if any."""
     appt = session.get(APPT_KEY)
     if not appt:
