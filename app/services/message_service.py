@@ -71,10 +71,28 @@ class MessageService:
         clean_phone = phone_number.replace('+', '').replace(':', '').replace('-', '')
         session_id = f"wa_{clean_phone}"
         
-        # Create session with SQLite backend - simpler and more reliable
-        # In serverless environments, SQLite might not be available
+        # Create session with SQLite backend - use absolute path for serverless
+        # In serverless environments, we need to use /tmp for writable storage
         try:
-            session = SQLiteSession(session_id, "conversations.db")
+            import os
+            import sqlite3
+            
+            # Ensure the directory exists
+            db_dir = "/tmp/whatsapp_sessions"
+            os.makedirs(db_dir, exist_ok=True)
+            
+            # Use absolute path for SQLite database
+            db_path = os.path.join(db_dir, "conversations.db")
+            
+            # Configure SQLite with WAL mode for better concurrency
+            conn = sqlite3.connect(db_path)
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA temp_store=MEMORY")
+            conn.close()
+            
+            session = SQLiteSession(session_id, db_path)
+            print(f"✅ SQLite session created: {db_path}")
         except Exception as e:
             print(f"⚠️ SQLite session not available: {e}")
             session = None
