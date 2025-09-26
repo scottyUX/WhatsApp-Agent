@@ -88,11 +88,12 @@ async def run_manager(user_input: Any, context: Dict[str, Any], session: Optiona
     log.info("🔵 MANAGER ROUTER: user_id=%s", wa_id)
     log.info("🔵 MANAGER ROUTER: Input: %r", user_input)
 
-    # 1) Reset handling: user wants out → clear lock
+    # 1) Reset handling: user wants out → clear lock and provide reset response
     if RESET_KEYWORDS.search(text):
         _clear_lock(wa_id)
         log.info("🔄 MANAGER ROUTER: Reset keywords detected, cleared lock")
-        # After reset, fall through to fresh intent detection
+        # Provide a helpful reset response instead of routing to another agent
+        return "I've reset our conversation. How can I help you today? You can ask about scheduling appointments, our services, or anything else."
 
     # 2) If there is an active lock, honor it (sticky routing)
     active = _get_lock(wa_id)

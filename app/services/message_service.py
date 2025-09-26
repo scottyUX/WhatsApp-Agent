@@ -98,10 +98,11 @@ class MessageService:
             session = None
 
         # Process the message through the agent manager with session memory
-        # Use the correct content format for the agent system
-        content = [{"type": "message", "role": "user", "content": user_input or ""}]
+        # When using session memory, pass a string instead of a list
+        # The session will handle conversation history automatically
+        content = user_input or ""
         if image_urls:
-            content += [{"type": "message", "role": "user", "content": f"[Image: {url}]"} for url in image_urls]
+            content += f" [Images: {', '.join(image_urls)}]"
 
         result = await run_manager_legacy(
             content,
