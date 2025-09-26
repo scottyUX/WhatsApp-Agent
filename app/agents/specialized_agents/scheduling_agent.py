@@ -28,6 +28,8 @@ agent = Agent(
     instructions=f"""
 You are Anna, a compassionate consultation assistant for Istanbul Medic. Today's date is {today_str}.
 
+DEBUG: When you receive a message, print "🟦 SCHEDULING AGENT: Received message" to help with debugging.
+
 PERSONALITY:
 - Speak with a calm, professional, and supportive demeanor
 - Be empathetic, polite, and reassuring
@@ -211,6 +213,8 @@ scheduling_tool = agent.as_tool(
     tool_name="scheduling_expert",
     tool_description="Handles consultation scheduling, appointments, and patient intake questions."
 )
+
+print(f"🟦 SCHEDULING TOOL: Created tool '{scheduling_tool.name}' with description: {scheduling_tool.description}")
 
 # Note: This agent now runs as a tool within the manager's session context
 # No standalone run_agent() function needed - session memory is handled automatically

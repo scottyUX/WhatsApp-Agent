@@ -68,10 +68,12 @@ TOOL COORDINATION
 
 ROUTING RULES
 • PII recall questions (name, phone, email, age, gender, city) → rely on session memory, quote exactly.
-• Appointments (view, schedule, reschedule, cancel) → scheduling_expert. Use session memory for confirmations and reminders.
+• Appointments (view, schedule, reschedule, cancel) → ALWAYS call scheduling_expert. Use session memory for confirmations and reminders.
 • Image uploads or analysis requests → image_expert.
 • Company, services, or procedure FAQs → knowledge_expert.
 • Other small-talk or non-tool queries → answer directly.
+
+CRITICAL: When user mentions "schedule", "appointment", "booking", "consultation" → IMMEDIATELY call scheduling_expert tool. Do NOT handle scheduling requests yourself.
 
 QUESTIONNAIRE ROUTING
 • After confirming appointment details (name, phone, email, time), ask: "Would you like to answer a few optional questions to help our specialist prepare? We'll go one at a time, and you can say 'skip' or 'skip all' anytime."
@@ -136,6 +138,7 @@ async def run_manager(user_input, user_id: str, session=None) -> str:
 
     print(f"🔵 MANAGER AGENT: Context: {context}")
     print(f"🔵 MANAGER AGENT: Available tools: {[tool.name for tool in manager_agent.tools]}")
+    print(f"🔵 MANAGER AGENT: Input contains 'schedule' or 'appointment': {'schedule' in str(user_input).lower() or 'appointment' in str(user_input).lower()}")
 
     # Run the manager agent with specialized tools
     print(f"🔵 MANAGER AGENT: Calling Runner.run...")
