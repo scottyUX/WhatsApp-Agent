@@ -81,9 +81,9 @@ class MessageService:
 
         # Process the message through the agent manager with session memory
         # Use the correct content format for the agent system
-        content = [{"type": "message", "role": "user", "text": user_input or ""}]
+        content = [{"type": "message", "role": "user", "content": user_input or ""}]
         if image_urls:
-            content += [{"type": "message", "role": "user", "text": f"[Image: {url}]"} for url in image_urls]
+            content += [{"type": "message", "role": "user", "content": f"[Image: {url}]"} for url in image_urls]
 
         result = await run_manager(
             content,
