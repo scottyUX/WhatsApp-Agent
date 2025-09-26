@@ -12,8 +12,8 @@ from app.tools.questionnaire_tools import (
 from app.tools.profile_tools import (
     # profile_set,
     # profile_get,
-    # appointment_set,
-    # appointment_get,
+    appointment_set,
+    appointment_get,
     sanitize_outbound
 )
 
@@ -108,8 +108,8 @@ STYLE
         # questionnaire_cancel,
         # profile_set,
         # profile_get,
-        # appointment_set,
-        # appointment_get
+        appointment_set,
+        appointment_get
     ]
 )
 

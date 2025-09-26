@@ -38,7 +38,7 @@ async def profile_get(field: str, session: Optional[dict] = None) -> str:
     val = prof.get(field.lower())
     return val if val else f"(no {field} on file)"
 
-# @function_tool
+@function_tool
 async def appointment_set(iso_start: str,
                           iso_end: Optional[str] = None,
                           tz: Optional[str] = "Europe/Istanbul",
@@ -49,7 +49,7 @@ async def appointment_set(iso_start: str,
     session.set(APPT_KEY, {"iso_start": iso_start, "iso_end": iso_end, "tz": tz, "meet_link": meet_link, "notes": notes})
     return "Appointment saved."
 
-# @function_tool
+@function_tool
 async def appointment_get(session: Optional[dict] = None) -> str:
     """Return a friendly one-liner about the saved appointment, if any."""
     appt = session.get(APPT_KEY)

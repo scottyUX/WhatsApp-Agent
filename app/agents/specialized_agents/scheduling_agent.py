@@ -11,7 +11,7 @@ from app.tools.google_calendar_tools import (
     reschedule_event_by_title,
     delete_event_by_title
 )
-from app.tools.profile_tools import appointment_set
+# from app.tools.profile_tools import appointment_set  # Temporarily disabled
 # Phone validation is now handled directly in Anna's prompt instructions
 
 # Load environment variables
