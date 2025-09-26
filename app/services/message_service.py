@@ -72,7 +72,12 @@ class MessageService:
         session_id = f"wa_{clean_phone}"
         
         # Create session with SQLite backend - simpler and more reliable
-        session = SQLiteSession(session_id, "conversations.db")
+        # In serverless environments, SQLite might not be available
+        try:
+            session = SQLiteSession(session_id, "conversations.db")
+        except Exception as e:
+            print(f"⚠️ SQLite session not available: {e}")
+            session = None
 
         # Build multimodal input for manager (images as actual image inputs, not just context)
         content = [{"type": "input_text", "text": user_input or ""}]
