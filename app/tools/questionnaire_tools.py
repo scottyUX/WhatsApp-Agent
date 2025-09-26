@@ -136,7 +136,7 @@ def _echo_like(answer: str, question: str) -> bool:
     return len(a & q) / max(1, len(a)) > 0.6
 
 @function_tool
-async def questionnaire_start(session) -> str:
+async def questionnaire_start(session: Any) -> str:
     """
     Start the structured questionnaire; asks exactly one question at a time.
     """
@@ -154,7 +154,7 @@ async def questionnaire_start(session) -> str:
     )
 
 @function_tool
-async def questionnaire_answer(user_text: str, session) -> str:
+async def questionnaire_answer(user_text: str, session: Any) -> str:
     """
     Record an answer, handle skip/skip all, and return the next question or a summary.
     """
@@ -262,7 +262,7 @@ async def questionnaire_answer(user_text: str, session) -> str:
     )
 
 @function_tool
-async def questionnaire_cancel(session) -> str:
+async def questionnaire_cancel(session: Any) -> str:
     """Cancel the questionnaire gracefully."""
     state = _load_state(session)
     state["active"] = False
@@ -270,7 +270,7 @@ async def questionnaire_cancel(session) -> str:
     return "No problem—I've stopped the questionnaire. We can proceed without it."
 
 @function_tool
-async def questionnaire_status(session) -> str:
+async def questionnaire_status(session: Any) -> str:
     """Check if questionnaire is active and return current state."""
     state = session.get(STATE_KEY) or {}
     if not state.get("active"):
@@ -282,7 +282,7 @@ async def questionnaire_status(session) -> str:
     return f"active: {order[cat_idx]} - question {state.get('q_idx', 0)}"
 
 @function_tool
-async def questionnaire_get_json(session) -> Dict[str, Any]:
+async def questionnaire_get_json(session: Any) -> Dict[str, Any]:
     """Get questionnaire state as structured data for downstream tools."""
     state = session.get(STATE_KEY) or _default_state()
     return {
