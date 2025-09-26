@@ -79,13 +79,12 @@ class MessageService:
             print(f"⚠️ SQLite session not available: {e}")
             session = None
 
-        # Build multimodal input for manager (images as actual image inputs, not just context)
-        content = [{"type": "input_text", "text": user_input or ""}]
-        if image_urls:
-            content += [{"type": "input_image", "image_url": url} for url in image_urls]
-
         # Process the message through the agent manager with session memory
-        # IMPORTANT: Pass multimodal content; session maintains history
+        # Use the correct content format for the agent system
+        content = [{"type": "message", "text": user_input or ""}]
+        if image_urls:
+            content += [{"type": "message", "text": f"[Image: {url}]"} for url in image_urls]
+
         result = await run_manager(
             content,
             phone_number,
