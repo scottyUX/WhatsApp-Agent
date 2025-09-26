@@ -39,9 +39,12 @@ async def istanbulMedic_webhook(request: Request, message_service: MessageServic
         return Response(content=xml_response.strip(), media_type="text/xml")
 
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         print(f"❌ Webhook error: {e}")
-        return Response(content="""
+        print(f"❌ Error details: {error_details}")
+        return Response(content=f"""
         <Response>
-            <Message>Sorry, an error occurred. Please try again.</Message>
+            <Message>Sorry, an error occurred. Please try again. Error: {str(e)}</Message>
         </Response>
         """.strip(), media_type="text/xml")
