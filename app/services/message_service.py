@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from app.services.history_service import HistoryService
 from agents import SQLiteSession
-from app.agents.manager_agent import run_manager
+from app.agents.manager_agent import run_manager_legacy
 from app.utils.audio_converter import transcribe_twilio_media
 from app.database.entities import Message
 from app.tools.profile_tools import sanitize_outbound
