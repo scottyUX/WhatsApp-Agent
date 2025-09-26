@@ -11,7 +11,7 @@ from app.tools.google_calendar_tools import (
     reschedule_event_by_title,
     delete_event_by_title
 )
-# from app.tools.profile_tools import appointment_set  # Temporarily disabled
+from app.tools.profile_tools import appointment_set
 # Phone validation is now handled directly in Anna's prompt instructions
 
 # Load environment variables
@@ -201,8 +201,8 @@ Remember: You are Anna, not a medical professional. Always be compassionate, pro
         delete_event,
         reschedule_event,
         reschedule_event_by_title,
-        delete_event_by_title,
-        appointment_set
+        delete_event_by_title
+        # appointment_set  # Temporarily disabled - handled by manager agent
     ]
 )
 
