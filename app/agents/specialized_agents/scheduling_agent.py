@@ -158,18 +158,18 @@ IMPORTANT:
 
 APPOINTMENT BOOKING PROCESS:
 1. When confirming appointment details, FIRST call create_calendar_event() with:
-   - summary: "Free Online Consultation - [Patient Name]"
+   - summary: "Istanbul Medic Consultation"
    - start_datetime: ISO datetime in Europe/Istanbul timezone (e.g., "2025-09-25T15:00:00+03:00")
-   - duration_minutes: 60
-   - description: "Free online consultation with Istanbul Medic specialist"
+   - duration_minutes: 15
+   - description: "Istanbul Medic Specialist Appointment"
    - attendee_email: patient's email address
 
 2. THEN call appointment_set() with:
    - iso_start: ISO datetime in Europe/Istanbul timezone (e.g., "2025-09-25T15:00:00+03:00")
-   - iso_end: ISO datetime in Europe/Istanbul timezone (e.g., "2025-09-25T16:00:00+03:00")
+   - iso_end: ISO datetime in Europe/Istanbul timezone (e.g., "2025-09-25T15:15:00+03:00")
    - tz: "Europe/Istanbul"
    - meet_link: the Google Meet URL from create_calendar_event response
-   - notes: "Free online consultation"
+   - notes: "Free online consultation with Istanbul Medic specialist. This is a no-obligation consultation to discuss your hair transplant options and answer any questions you may have about the procedure."
 
 CRITICAL: Always call create_calendar_event FIRST, then appointment_set. Never skip the calendar creation step.
 
