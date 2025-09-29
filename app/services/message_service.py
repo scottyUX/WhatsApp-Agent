@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, AsyncGenerator
 from fastapi import Request
 import json
 from datetime import datetime
@@ -25,7 +25,7 @@ class MessageService:
             media_list = msg.media or []
             for media in media_list:
                 message += f" [Media: {media.media_url}]"
-            message_information = f"[{direction} | {msg.created_at.strftime('%Y-%m-%d %H:%M:%S')}]: {message"
+            message_information = f"[{direction} | {msg.created_at.strftime('%Y-%m-%d %H:%M:%S')}]: {message}"
             formatted.append(message_information)
         return "\n".join(formatted)
 

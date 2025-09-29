@@ -1,7 +1,7 @@
 from agents import Agent, ModelSettings, FileSearchTool, Runner
 from app.config.settings import settings
 
-agent = Agent(
+english_agent = Agent(
     name="EnglishAgent",
     instructions="""
 You are an expert, multilingual assistant for IstanbulMedic (formerly Longevita), a UK-registered medical tourism provider offering cosmetic procedures in Istanbul and London. Your role is to provide accurate, helpful, and concise answers to patients based on the provided vector store knowledge.

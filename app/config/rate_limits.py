@@ -18,6 +18,9 @@ class RateLimitConfig:
     
     # Test endpoints (stricter since they're for development)
     TEST = "30/minute"
+    
+    # Chat endpoints
+    CHAT = "50/minute"
 
 
 def get_rate_limit_key(request: Request) -> str:
