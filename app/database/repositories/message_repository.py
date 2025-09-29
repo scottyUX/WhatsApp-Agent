@@ -9,29 +9,23 @@ class MessageRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def create(self, conversation_id: Union[str, uuid.UUID], sender: str, content: str) -> Message:
+    def create(self, user_id: Union[str, uuid.UUID], direction: str, body: Optional[str], media_url: Optional[str] = None) -> Message:
         # Convert string UUID to UUID object if needed
-        if isinstance(conversation_id, str):
-            conversation_id = uuid.UUID(conversation_id)
+        if isinstance(user_id, str):
+            user_id = uuid.UUID(user_id)
         
-        msg = Message(conversation_id=conversation_id, sender=sender, content=content)
+        msg = Message(user_id=user_id, direction=direction, body=body, media_url=media_url)
         self.db.add(msg)
         self.db.commit()
         self.db.refresh(msg)
         return msg
 
-    def save(self, message: Message) -> Message:
-        self.db.add(message)
-        self.db.commit()
-        self.db.refresh(message)
-        return message
-
-    def get_by_conversation(self, conversation_id: Union[str, uuid.UUID], limit: int = 10) -> List[Message]:
+    def get_by_user(self, user_id: Union[str, uuid.UUID]) -> List[Message]:
         # Convert string UUID to UUID object if needed
-        if isinstance(conversation_id, str):
-            conversation_id = uuid.UUID(conversation_id)
-
-        return self.db.query(Message).filter(Message.conversation_id == conversation_id).order_by(Message.created_at.asc()).limit(limit).all()
+        if isinstance(user_id, str):
+            user_id = uuid.UUID(user_id)
+        
+        return self.db.query(Message).filter(Message.user_id == user_id).order_by(Message.created_at.desc()).all()
 
     def get_by_id(self, message_id: Union[str, uuid.UUID]) -> Optional[Message]:
         # Convert string UUID to UUID object if needed
@@ -39,3 +33,10 @@ class MessageRepository:
             message_id = uuid.UUID(message_id)
         
         return self.db.query(Message).filter(Message.id == message_id).first()
+
+    def get_recent_by_user(self, user_id: Union[str, uuid.UUID], limit: int = 10) -> List[Message]:
+        # Convert string UUID to UUID object if needed
+        if isinstance(user_id, str):
+            user_id = uuid.UUID(user_id)
+        
+        return self.db.query(Message).filter(Message.user_id == user_id).order_by(Message.created_at.desc()).limit(limit).all()

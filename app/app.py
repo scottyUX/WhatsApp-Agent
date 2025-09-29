@@ -1,11 +1,9 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from slowapi.errors import RateLimitExceeded
-
+import uvicorn
 from app.config.settings import settings
-from app.routers import test, healthcheck, whatsapp_router, chat_router
+from app.routers import webhook, test, healthcheck
 from app.config.rate_limits import limiter, custom_rate_limit_handler
-
+from slowapi.errors import RateLimitExceeded
 
 settings.validate()
 
@@ -18,32 +16,11 @@ app = FastAPI(
     openapi_url="/openapi.json" if settings.DEBUG else None
 )
 
-# Set CORS origins based on DEBUG mode
-if settings.DEBUG:
-    origins = ["*"]  # Allow all origins in debug mode
-else:
-    origins = [
-        "http://localhost",
-        "http://localhost:8000",
-        # TODO: other domains will be added here when deployed
-    ]
-
-# Middlewares
-app.add_middleware(
-  CORSMiddleware,
-  allow_origins=origins,
-  allow_credentials=True,
-  allow_methods=["*"],
-  allow_headers=["*"],
-)
-
 # Add rate limiting
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 
-# Include routers
-app.include_router(whatsapp_router.router)
-app.include_router(chat_router.router)
+app.include_router(webhook.router)
 app.include_router(healthcheck.router)
 
 # Only include test router in debug mode
@@ -56,5 +33,4 @@ async def read_root():
     return "V"
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=settings.PORT)

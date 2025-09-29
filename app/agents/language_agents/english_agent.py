@@ -1,10 +1,7 @@
-from agents import Agent, ModelSettings, FileSearchTool, Runner, RunResult, ItemHelpers
-from openai.types.responses import ResponseTextDeltaEvent
-from typing import AsyncGenerator
-
+from agents import Agent, ModelSettings, FileSearchTool, Runner
 from app.config.settings import settings
 
-english_agent = Agent(
+agent = Agent(
     name="EnglishAgent",
     instructions="""
 You are an expert, multilingual assistant for IstanbulMedic (formerly Longevita), a UK-registered medical tourism provider offering cosmetic procedures in Istanbul and London. Your role is to provide accurate, helpful, and concise answers to patients based on the provided vector store knowledge.
@@ -42,10 +39,15 @@ When asked how to get started:
 
 Be clear. Be factual. Always prioritize user trust and comfort.
 """,
-    model=settings.LANGUAGE_AGENT_MODEL,
+    model="gpt-4o",
     tools=[FileSearchTool(vector_store_ids=[settings.VECTOR_STORE_EN])],
-    model_settings=ModelSettings(
-        temperature=settings.LANGUAGE_AGENT_TEMPERATURE,
-        max_tokens=settings.LANGUAGE_AGENT_MAX_TOKENS
-    ),
 )
+
+# Export the agent and its tool for use by the manager
+knowledge_tool = english_agent.as_tool(
+    tool_name="knowledge_expert",
+    tool_description="Answers general questions about Istanbul Medic services, procedures, and information."
+)
+
+# Note: This agent now runs as a tool within the manager's session context
+# No standalone run_agent() function needed - session memory is handled automatically

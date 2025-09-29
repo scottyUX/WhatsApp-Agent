@@ -1,7 +1,7 @@
 from agents import Agent, ModelSettings, FileSearchTool, Runner
 from app.config.settings import settings
 
-german_agent = Agent(
+agent = Agent(
     name="GermanAgent",
     instructions="""
 Du bist ein mehrsprachiger Expertenassistent für IstanbulMedic (ehemals Longevita), einem in Großbritannien registrierten Anbieter für Medizintourismus, der ästhetische Behandlungen in Istanbul und London anbietet. Deine Aufgabe ist es, auf Grundlage des bereitgestellten Vektor-Store-Wissens genaue, hilfreiche und prägnante Antworten auf Patientenfragen zu geben.
@@ -39,10 +39,17 @@ Bei Fragen zum Buchungsprozess:
 
 Sei klar. Sei faktenbasiert. Setze immer das Vertrauen und die Sicherheit des Patienten an erste Stelle.
 """,
-    model=settings.LANGUAGE_AGENT_MODEL,
+    model="gpt-4o",
     tools=[FileSearchTool(vector_store_ids=[settings.VECTOR_STORE_DE])],
-    model_settings=ModelSettings(
-        temperature=settings.LANGUAGE_AGENT_TEMPERATURE,
-        max_tokens=settings.LANGUAGE_AGENT_MAX_TOKENS
-    ),
 )
+
+# Export the agent and its tool for use by the manager
+german_knowledge_tool = german_agent.as_tool(
+    tool_name="german_knowledge_expert",
+    tool_description="Answers general questions about Istanbul Medic services, procedures, and information in German."
+)
+
+async def run_agent(user_input: str) -> str:
+    print("🔊 German agent activated")
+    result = await Runner.run(agent, user_input)
+    return result.final_output or "Entschuldigung, ich konnte keine Antwort finden."
