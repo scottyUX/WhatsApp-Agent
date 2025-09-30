@@ -1,5 +1,10 @@
-from googleapiclient.discovery import build
-from google.oauth2 import service_account
+try:
+    from googleapiclient.discovery import build
+    from google.oauth2 import service_account
+    GOOGLE_CALENDAR_AVAILABLE = True
+except ImportError:
+    GOOGLE_CALENDAR_AVAILABLE = False
+    print("Warning: Google Calendar API not available. Calendar functions will be disabled.")
 from agents import function_tool
 import datetime
 import os
@@ -11,7 +16,27 @@ SCOPES = [
 ]
 
 def get_calendar_service():
-    # Use service account credentials from environment variables
+    if not GOOGLE_CALENDAR_AVAILABLE:
+        raise RuntimeError('Google Calendar API is not available. Please install google-api-python-client.')
+    
+    import json
+    
+    # Try to use GOOGLE_SERVICE_ACCOUNT_JSON first (for Vercel deployment)
+    service_account_json = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')
+    
+    if service_account_json:
+        try:
+            # Parse the JSON string
+            info = json.loads(service_account_json)
+            creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+            delegated_user = os.getenv('GOOGLE_CALENDAR_ID')
+            if delegated_user:
+                creds = creds.with_subject(delegated_user)
+            return build('calendar', 'v3', credentials=creds)
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f'Invalid GOOGLE_SERVICE_ACCOUNT_JSON: {e}')
+    
+    # Fallback to individual environment variables (for local development)
     private_key = os.getenv('GOOGLE_PRIVATE_KEY')
     client_email = os.getenv('GOOGLE_CLIENT_EMAIL')
     project_id = os.getenv('GOOGLE_PROJECT_ID')
@@ -62,6 +87,9 @@ def create_calendar_event(summary: str, start_datetime: str, duration_minutes: i
         - Sends calendar invitation to attendee
         - Returns event time and Meet link for easy sharing
     """
+    if not GOOGLE_CALENDAR_AVAILABLE:
+        return "Calendar functionality is currently unavailable. Please contact our team directly to schedule your appointment."
+    
     print(f"🔴 CREATE_CALENDAR_EVENT: Called with summary={summary}, start_datetime={start_datetime}")
     print(f"🔴 CREATE_CALENDAR_EVENT: duration_minutes={duration_minutes}, attendee_email={attendee_email}")
     
@@ -126,6 +154,9 @@ def list_upcoming_events(max_results: int = 10) -> str:
     """
     List upcoming events with their IDs for rescheduling/deletion.
     """
+    if not GOOGLE_CALENDAR_AVAILABLE:
+        return "Calendar functionality is currently unavailable. Please contact our team directly to check your appointments."
+    
     try:
         service = get_calendar_service()
         now = datetime.datetime.utcnow().isoformat() + 'Z'
