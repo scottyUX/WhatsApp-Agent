@@ -4,14 +4,17 @@ from app.config.rate_limits import limiter, RateLimitConfig
 from app.dependencies import MessageServiceDep
 
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/api",
+    tags=["Webhook"],
+)
 
-@router.get("/api/webhook")
+@router.get("/webhook")
 async def webhook_verification(request: Request):
     """Handle webhook verification requests from Twilio."""
     return {"status": "ok", "message": "Webhook is working"}
 
-@router.post("/api/webhook")
+@router.post("/webhook")
 @limiter.limit(RateLimitConfig.WEBHOOK)
 async def istanbulMedic_webhook(request: Request, message_service: MessageServiceDep):
     try:
