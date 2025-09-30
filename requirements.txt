@@ -13,7 +13,7 @@ elevenlabs
 slowapi
 sqlalchemy
 psycopg2-binary>=2.9.0
-google-api-python-client>=2.0.0
+google-api-python-client==2.182.0
 google-auth>=2.0.0
 google-auth-oauthlib>=1.0.0
 hubspot-api-client>=8.0.0
