@@ -31,8 +31,8 @@ async def istanbulMedic_webhook(request: Request, message_service: MessageServic
         print(f"🟣 WEBHOOK: Image URLs: {image_urls}")
         print(f"🟣 WEBHOOK: Audio URLs: {audio_urls}")
         
-        # Use the message service to handle the incoming message
-        result = await message_service.handle_incoming_message(
+        # Use the message service to handle the incoming WhatsApp message
+        result = await message_service.handle_incoming_whatsapp_message(
             phone_number=user_id,
             body=user_input,
             image_urls=image_urls,
