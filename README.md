@@ -87,3 +87,4 @@ app/
 - Handles text, image, and voice messages
 - Uses vector stores for medical knowledge
 - Image analysis for hair transplant consultations
+# Force deployment
