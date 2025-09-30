@@ -138,9 +138,23 @@ class MessageService:
 
         return result
 
+    async def handle_incoming_message(
+        self,
+        phone_number: str,
+        body: str,
+        image_urls: List[str] = None,
+        audio_urls: List[str] = None,
+    ) -> str:
+        """
+        Handle incoming message (alias for WhatsApp message handling).
+        """
+        return await self.handle_incoming_whatsapp_message(
+            phone_number, body, image_urls, audio_urls
+        )
+
     async def get_message_history(self, phone_number: str, limit: int = 10) -> List[Message]:
         """Get message history for a phone number."""
-        return await self.history_service.get_message_history(phone_number, limit)
+        return await self.history_service.get_message_history_by_phone(phone_number, limit)
 
     async def handle_incoming_whatsapp_message_streaming(
         self,
