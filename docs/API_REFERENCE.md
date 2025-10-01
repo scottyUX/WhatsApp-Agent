@@ -20,22 +20,73 @@ No authentication required for webhook endpoints. API keys are managed through e
 #### POST /api/webhook
 **Purpose**: Twilio webhook endpoint for incoming WhatsApp messages.
 
-**Request Body**:
+**Request Body** (form-encoded):
+```
+From=+1234567890&Body=Hello, I'd like to schedule a consultation&MediaUrl0=https://example.com/image.jpg&NumMedia=1
+```
+
+**Response** (XML):
+```xml
+<Response>
+    <Message>Hello! I'm Anna, your consultation assistant...</Message>
+</Response>
+```
+
+**Status Codes**:
+- `200` - Success
+- `400` - Bad Request
+- `500` - Internal Server Error
+
+### Chat Endpoints
+
+#### POST /chat/
+**Purpose**: Direct chat integration for website users.
+
+**Request Body** (JSON):
 ```json
 {
-  "From": "whatsapp:+1234567890",
-  "Body": "Hello, I'd like to schedule a consultation",
-  "MediaUrl0": "https://example.com/image.jpg",
-  "NumMedia": "1"
+  "content": "Hello, I want to schedule an appointment",
+  "media_urls": [],
+  "audio_urls": []
 }
 ```
 
-**Response**:
+**Response** (JSON):
 ```json
 {
-  "message": "Hello! I'm Anna, your consultation assistant..."
+  "content": "Hello! I'm Anna, your consultation assistant..."
 }
 ```
+
+**Status Codes**:
+- `200` - Success
+- `400` - Bad Request
+- `500` - Internal Server Error
+
+#### POST /chat/stream
+**Purpose**: Streaming chat integration for real-time responses using Server-Sent Events (SSE).
+
+**Request Body** (JSON):
+```json
+{
+  "content": "I need help with my medical consultation",
+  "media_urls": [],
+  "audio_urls": []
+}
+```
+
+**Response** (Server-Sent Events):
+```
+data: {"content": "Hello! I'm Anna, your consultation assistant...", "timestamp": "2025-10-01T14:24:19.941641", "is_final": false}
+
+data: {"content": "", "timestamp": "2025-10-01T14:24:19.941881", "is_final": true}
+```
+
+**Response Format**:
+- **Content-Type**: `text/plain; charset=utf-8`
+- **Transfer-Encoding**: `chunked`
+- **Cache-Control**: `no-cache`
+- **Connection**: `keep-alive`
 
 **Status Codes**:
 - `200` - Success

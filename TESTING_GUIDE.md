@@ -217,13 +217,111 @@ Anna: "No problem, we'll skip that."
 - **Solution:** Check logs for tool execution
 - **Expected:** Should create event automatically
 
+## Streaming Functionality Tests
+
+### 1. Chat Endpoints Testing
+
+#### Regular Chat Endpoint (`/chat/`)
+```bash
+curl -X POST "http://localhost:8000/chat/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "I need help with my medical consultation",
+    "media_urls": [],
+    "audio_urls": []
+  }'
+```
+
+**Expected Response:**
+- Status: `200 OK`
+- Content-Type: `application/json`
+- Body: `{"content": "Anna's response..."}`
+
+#### Streaming Chat Endpoint (`/chat/stream`)
+```bash
+curl -X POST "http://localhost:8000/chat/stream" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "I need help with my medical consultation",
+    "media_urls": [],
+    "audio_urls": []
+  }' \
+  --no-buffer
+```
+
+**Expected Response:**
+- Status: `200 OK`
+- Content-Type: `text/plain; charset=utf-8`
+- Transfer-Encoding: `chunked`
+- Cache-Control: `no-cache`
+- Connection: `keep-alive`
+- Body: Server-Sent Events format with JSON chunks
+
+### 2. Streaming Response Format
+
+Each chunk should follow this format:
+```
+data: {"content": "Partial response text", "timestamp": "2025-10-01T14:24:19.941641", "is_final": false}
+
+data: {"content": "", "timestamp": "2025-10-01T14:24:19.941881", "is_final": true}
+```
+
+### 3. Database Integration Tests
+
+#### Message Storage Verification
+- Incoming messages should be stored with `direction = "incoming"`
+- Outgoing messages should be stored with `direction = "outgoing"`
+- Chat users should have `phone_number = "chat_{user_id}"`
+- Messages should be linked to users via `user_id`
+
+#### Test Database Queries
+```sql
+-- Check chat user creation
+SELECT * FROM users WHERE phone_number LIKE 'chat_%';
+
+-- Check message storage
+SELECT u.phone_number, m.direction, m.body, m.created_at
+FROM users u
+JOIN messages m ON u.id = m.user_id
+WHERE u.phone_number LIKE 'chat_%'
+ORDER BY m.created_at DESC
+LIMIT 10;
+```
+
+### 4. Comprehensive Testing Script
+
+Run the comprehensive streaming test suite:
+```bash
+python test_streaming_comprehensive.py
+```
+
+This script tests:
+- Regular chat endpoint functionality
+- Streaming chat endpoint functionality
+- Response headers validation
+- Database integration
+- Error handling
+- Performance with concurrent requests
+- Webhook integration
+
+### 5. Expected Test Results
+
+All tests should pass with:
+- ✅ Regular Chat Response
+- ✅ Streaming Response
+- ✅ Streaming Headers
+- ✅ Database Integration
+- ✅ Error Handling
+- ✅ Performance Test
+- ✅ Webhook Integration
+
 ## Contact Information
 
 For technical issues or questions about testing:
 - **Developer:** [Your contact info]
 - **Project:** Istanbul Medic WhatsApp Agent
 - **Repository:** [GitHub link]
-- **Last Updated:** September 26, 2025
+- **Last Updated:** October 1, 2025
 
 ---
 

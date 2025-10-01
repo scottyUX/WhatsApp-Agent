@@ -14,10 +14,10 @@ Scope: Validate end-to-end persistence and retrieval for WhatsApp Agent after th
 select now();
 select 1;
 ```
-- Tables exist (adjust schema/table names if prefixed):
+- Tables exist (current implementation uses simplified schema):
 ```sql
 select table_name from information_schema.tables where table_schema = 'public'
-  and table_name in ('users','messages','media','patient_profiles','medical_backgrounds');
+  and table_name in ('users','messages');
 ```
 - Columns sanity (users, messages):
 ```sql
@@ -26,7 +26,7 @@ select column_name, data_type from information_schema.columns
 select column_name, data_type from information_schema.columns 
  where table_name = 'messages';
 ```
-- Note: `media` table exists but is separate from `messages.media_url` - both are valid storage patterns
+- Note: Current implementation uses simplified schema with direct user-message relationship (no separate conversations/connections tables)
 
 ### 3) Core Persistence: Inbound + Outbound Messages
 Goal: When a WhatsApp message arrives, we store one incoming and one outgoing record and (optionally) media.
@@ -36,13 +36,13 @@ Steps:
 ```bash
 curl -X POST "$BASE_URL/api/webhook" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "From=whatsapp:+1TESTNUMBER&Body=hello from db test"
+  -d "From=+1TESTNUMBER&Body=hello from db test"
 ```
 2. Query user auto-creation:
 ```sql
 select id, phone_number, name, created_at
 from users
-where phone_number = 'whatsapp:+1TESTNUMBER';
+where phone_number = '+1TESTNUMBER';
 ```
 Expect: one row returned.
 3. Query recent messages:
@@ -61,7 +61,7 @@ Steps:
 ```bash
 curl -X POST "$BASE_URL/api/webhook" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "From=whatsapp:+1TESTNUMBER&Body=see image&MediaUrl0=https://via.placeholder.com/300.png&NumMedia=1&MediaContentType0=image/jpeg"
+  -d "From=+1TESTNUMBER&Body=see image&MediaUrl0=https://via.placeholder.com/300.png&NumMedia=1&MediaContentType0=image/jpeg"
 ```
 2. Query messages:
 ```sql
@@ -72,7 +72,7 @@ order by created_at desc
 limit 5;
 ```
 Expect: the latest incoming message has media_url populated with the URL.
-Note: Implementation stores first media URL in `messages.media_url` field, not separate `media` table.
+Note: Current implementation stores first media URL in `messages.media_url` field, not separate `media` table.
 
 ### 5) Idempotency / Duplicate Prevention
 Goal: Same Twilio event should not produce duplicate rows (best-effort check).
@@ -98,12 +98,72 @@ Steps:
 select direction, body, created_at
 from messages
 where user_id = (
-  select id from users where phone_number = 'whatsapp:+1TESTNUMBER'
+  select id from users where phone_number = '+1TESTNUMBER'
 )
 order by created_at desc
 limit 10;
 ```
 Expect: Matches app responses order (most recent first).
+
+### 6.5) Chat Endpoints Database Integration (NEW)
+Goal: Validate chat endpoints store messages in database with proper user management.
+
+Steps:
+1. Test regular chat endpoint:
+```bash
+curl -X POST "$BASE_URL/chat/" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Hello, I want to schedule an appointment", "media_urls": [], "audio_urls": []}'
+```
+
+2. Test streaming chat endpoint:
+```bash
+curl -X POST "$BASE_URL/chat/stream" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "I need help with my medical consultation", "media_urls": [], "audio_urls": []}'
+```
+
+3. Query chat user creation:
+```sql
+select id, phone_number, name, created_at
+from users
+where phone_number like 'chat_%';
+```
+
+4. Query chat messages:
+```sql
+select direction, body, created_at
+from messages
+where user_id = (
+  select id from users where phone_number = 'chat_chat_user'
+)
+order by created_at desc
+limit 10;
+```
+
+Expect: 
+- Chat users stored as `chat_{user_id}` format
+- Messages properly stored for both regular and streaming endpoints
+- Both incoming and outgoing messages recorded
+
+### 6.6) Service Method Testing (UPDATED)
+Current implementation uses simplified service methods:
+- `store_message()` - stores messages with phone_number
+- `get_message_history_by_phone()` - retrieves by phone_number
+
+Test these methods directly:
+```python
+# Test store_message
+await history_service.store_message(
+    phone_number="+1234567890",
+    content="Test message",
+    direction="incoming",
+    media_urls=[]
+)
+
+# Test get_message_history_by_phone
+history = await history_service.get_message_history_by_phone("+1234567890", 10)
+```
 
 ### 7) Performance & Indexes
 Checks to avoid table scans.
@@ -146,10 +206,12 @@ delete from users where id = '<USER_ID>';
 - Restore drill: ability to recover last 24h snapshot (not on prod unless scheduled)
 
 ### 12) Acceptance Checklist
-- [ ] User auto-created on first inbound
-- [ ] Incoming message row created
-- [ ] Outgoing agent reply stored
-- [ ] Media URL stored for image message
+- [ ] User auto-created on first inbound (WhatsApp)
+- [ ] Incoming message row created (WhatsApp)
+- [ ] Outgoing agent reply stored (WhatsApp)
+- [ ] Media URL stored for image message (WhatsApp)
+- [ ] Chat user auto-created on first chat request
+- [ ] Chat messages stored (both regular and streaming)
 - [ ] History retrieval returns latest N
 - [ ] Indexes used on history queries
 - [ ] No obvious duplicates for same event
@@ -158,19 +220,32 @@ delete from users where id = '<USER_ID>';
 
 ### 13) Quick Commands Reference
 ```bash
-# Send test message
+# Send WhatsApp test message
 curl -X POST "$BASE_URL/api/webhook" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "From=whatsapp:+1TESTNUMBER&Body=hello from db test"
+  -d "From=+1TESTNUMBER&Body=hello from db test"
 
-# Send with media
+# Send WhatsApp with media
 curl -X POST "$BASE_URL/api/webhook" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "From=whatsapp:+1TESTNUMBER&Body=see image&MediaUrl0=https://via.placeholder.com/300.png&NumMedia=1&MediaContentType0=image/jpeg"
+  -d "From=+1TESTNUMBER&Body=see image&MediaUrl0=https://via.placeholder.com/300.png&NumMedia=1&MediaContentType0=image/jpeg"
+
+# Test chat endpoint
+curl -X POST "$BASE_URL/chat/" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Hello, I want to schedule an appointment", "media_urls": [], "audio_urls": []}'
+
+# Test chat streaming endpoint
+curl -X POST "$BASE_URL/chat/stream" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "I need help with my medical consultation", "media_urls": [], "audio_urls": []}'
 ```
 
 Notes:
 - `$BASE_URL` is your deployment origin (e.g., `https://whats-app-agent-...vercel.app`).
 - Replace `+1TESTNUMBER` and `<USER_ID>` with real values from your run.
+- Current implementation uses simplified schema: direct user-message relationship (no conversations/connections tables)
+- Chat users are stored as `chat_{user_id}` to distinguish from WhatsApp users
+- Manager agent uses `run_manager_legacy()` with simplified context handling
 
 

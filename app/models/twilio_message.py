@@ -15,16 +15,13 @@ class TwilioWebhookData:
     
     def get_image_urls(self) -> List[str]:
         image_urls = []
-        auth = (settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
         
         for i in range(self.num_media):
             media_type = self.form.get(f"MediaContentType{i}")
             if media_type and media_type.startswith("image/"):
                 image_url = self.form.get(f"MediaUrl{i}")
-                response = requests.get(image_url, auth=auth)       
-                encoded_image = base64.b64encode(response.content).decode('utf-8')
-                encoded_url = f"data:image/jpeg;base64,{encoded_image}"
-                image_urls.append(encoded_url)
+                if image_url:
+                    image_urls.append(image_url)
         return image_urls
     
     def get_audio_urls(self) -> List[str]:

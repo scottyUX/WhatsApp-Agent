@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 import time
 import logging
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, AsyncGenerator
 
 # Import your SDK runner and specialized agents.
 from agents import Runner
@@ -155,3 +155,27 @@ async def run_manager_legacy(user_input, user_id: str, session=None) -> str:
         return str(result.final_output)
     else:
         return str(result)
+
+async def run_manager_streaming(user_input: str, user_id: str, image_urls: list = []) -> AsyncGenerator[str, None]:
+    """
+    Stream the manager response for real-time output.
+    For now, this is a simplified implementation that yields the full response.
+    Can be enhanced later with true streaming from the agents.
+    """
+    context = {
+        "user_id": user_id,
+        "channel": "chat"
+    }
+    
+    # Get the full response first
+    result = await run_manager(user_input, context, session=None)
+    
+    # Extract final output from result
+    if hasattr(result, 'final_output'):
+        full_response = str(result.final_output)
+    else:
+        full_response = str(result)
+    
+    # For now, yield the full response as a single chunk
+    # This can be enhanced to stream word by word or sentence by sentence
+    yield full_response

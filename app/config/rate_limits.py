@@ -21,6 +21,9 @@ class RateLimitConfig:
     
     # Chat endpoints
     CHAT = "50/minute"
+    
+    # WhatsApp endpoints
+    WHATSAPP = "100/minute"
 
 
 def get_rate_limit_key(request: Request) -> str:

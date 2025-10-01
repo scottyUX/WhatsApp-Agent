@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 
 from app.services.history_service import HistoryService
-from app.agents.manager_agent import run_manager_legacy
+from app.agents.manager_agent import run_manager_legacy, run_manager_streaming
 from app.database.entities import Message
 from app.models.chat_message import ChatStreamChunk
 from app.utils import transcribe_twilio_media, RequestUtils
@@ -120,9 +120,11 @@ class MessageService:
             session=None,  # No session memory for chat
         )
 
-        # Store the message in database
+        # Store the message in database using user_id as phone_number for chat users
+        # This ensures we can track chat conversations separately from WhatsApp
+        chat_phone = f"chat_{user_id}"
         await self.history_service.store_message(
-            phone_number=user_id,
+            phone_number=chat_phone,
             content=content,
             direction="incoming",
             media_urls=image_urls or []
@@ -130,7 +132,7 @@ class MessageService:
 
         # Store the agent response
         await self.history_service.store_message(
-            phone_number=user_id,
+            phone_number=chat_phone,
             content=result,
             direction="outgoing",
             media_urls=[]
@@ -184,19 +186,50 @@ class MessageService:
         user_id: str,
         content: str,
         image_urls: List[str] = None,
-    ) -> AsyncGenerator[ChatStreamChunk, None]:
+    ) -> AsyncGenerator[str, None]:
         """
         Handle incoming chat message with streaming response.
         """
         print(f"📩 Chat streaming message from {user_id}: {content}")
         
-        # For now, return a single chunk (can be enhanced later)
-        result = await self.handle_incoming_chat_message(
-            user_id, content, image_urls
+        # Store the incoming message in database
+        chat_phone = f"chat_{user_id}"
+        await self.history_service.store_message(
+            phone_number=chat_phone,
+            content=content,
+            direction="incoming",
+            media_urls=image_urls or []
         )
-        
-        yield ChatStreamChunk(
-            content=result,
-            is_final=True,
-            timestamp=datetime.now()
+
+        # Collect the full response for logging
+        full_response = ""
+
+        # Process the message through the manager with streaming
+        async for chunk in run_manager_streaming(content, user_id, image_urls or []):
+            full_response += chunk
+            
+            # Create a streaming chunk
+            stream_chunk = ChatStreamChunk(
+                content=chunk,
+                timestamp=datetime.now().isoformat(),
+                is_final=False
+            )
+            
+            # Send as Server-Sent Events format
+            yield f"data: {json.dumps(stream_chunk.__dict__)}\n\n"
+
+        # Send final chunk to indicate completion
+        final_chunk = ChatStreamChunk(
+            content="",
+            timestamp=datetime.now().isoformat(),
+            is_final=True
+        )
+        yield f"data: {json.dumps(final_chunk.__dict__)}\n\n"
+
+        # Store the complete outgoing response
+        await self.history_service.store_message(
+            phone_number=chat_phone,
+            content=full_response,
+            direction="outgoing",
+            media_urls=[]
         )

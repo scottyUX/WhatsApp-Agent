@@ -21,6 +21,9 @@ class Settings:
     
     ELEVENLABS_API_KEY: str = os.getenv("ELEVENLABS_API_KEY")
     
+    # Google Calendar
+    GOOGLE_CALENDAR_ID: str = os.getenv("GOOGLE_CALENDAR_ID", "primary")
+    
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     

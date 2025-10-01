@@ -1,16 +1,17 @@
 from typing import Annotated
 from fastapi import Depends
+from sqlalchemy.orm import Session
 
 from app.database.repositories.user_repository import UserRepository
 from app.database.repositories.message_repository import MessageRepository
 from app.database.db import get_db
 
 
-def get_user_repository(db: Annotated[object, Depends(get_db)]) -> UserRepository:
+def get_user_repository(db: Annotated[Session, Depends(get_db)]) -> UserRepository:
     return UserRepository(db)
 
 
-def get_message_repository(db: Annotated[object, Depends(get_db)]) -> MessageRepository:
+def get_message_repository(db: Annotated[Session, Depends(get_db)]) -> MessageRepository:
     return MessageRepository(db)
 
 

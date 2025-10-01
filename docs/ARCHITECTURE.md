@@ -13,13 +13,15 @@ The WhatsApp Medical Agent system uses a simplified multi-agent architecture wit
                       │
 ┌─────────────────────▼───────────────────────────────────────┐
 │                 Twilio Webhook                              │
+│              POST /api/webhook                              │
 └─────────────────────┬───────────────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────────────┐
 │              Message Service                                │
 │  • Phone number processing                                 │
-│  • SQLiteSession management                               │
+│  • Database integration (PostgreSQL)                      │
 │  • Message history formatting                             │
+│  • Session memory management                              │
 └─────────────────────┬───────────────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────────────┐
@@ -27,6 +29,7 @@ The WhatsApp Medical Agent system uses a simplified multi-agent architecture wit
 │  • Intent detection and routing                            │
 │  • Tool orchestration                                     │
 │  • Context management                                     │
+│  • Legacy compatibility (run_manager_legacy)              │
 └─────────────────────┬───────────────────────────────────────┘
                       │
         ┌─────────────┼─────────────┐
@@ -35,6 +38,30 @@ The WhatsApp Medical Agent system uses a simplified multi-agent architecture wit
 │ Scheduling   │ │ Image  │ │ Knowledge   │
 │ Agent (Anna) │ │ Agent  │ │ Agent       │
 └──────────────┘ └────────┘ └─────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                    Chat Users                               │
+│              (Website Integration)                          │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────────┐
+│                Chat Endpoints                               │
+│              POST /chat/                                    │
+│              POST /chat/stream                              │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────────┐
+│              Message Service                                │
+│  • User management (chat_{user_id})                        │
+│  • Database integration (PostgreSQL)                      │
+│  • Streaming response support                              │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────────┐
+│                Manager Agent                                │
+│  • Same agent logic as WhatsApp                            │
+│  • No session memory for chat                              │
+└─────────────────────┬───────────────────────────────────────┘
 ```
 
 ## Core Components
@@ -157,15 +184,18 @@ Specialized Agent → Manager Agent → Message Service → Twilio → WhatsApp
 
 ## Database Schema
 
+### Current Implementation (Simplified)
+The current implementation uses a simplified schema with direct user-message relationships:
+
 ### Messages Table
 ```sql
 CREATE TABLE messages (
     id UUID PRIMARY KEY,
     user_id UUID REFERENCES users(id),
-    direction VARCHAR(20) NOT NULL,
+    direction VARCHAR(20) NOT NULL CHECK (direction IN ('incoming', 'outgoing')),
     body TEXT,
     media_url TEXT,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```
 
@@ -174,9 +204,20 @@ CREATE TABLE messages (
 CREATE TABLE users (
     id UUID PRIMARY KEY,
     phone_number VARCHAR(20) UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
+    name VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```
+
+### User Types
+- **WhatsApp Users**: `phone_number` = actual phone number (e.g., `+1234567890`)
+- **Chat Users**: `phone_number` = `chat_{user_id}` format (e.g., `chat_user_123`)
+
+### Database Integration
+- **Primary Database**: PostgreSQL (Supabase)
+- **Session Storage**: SQLite (local, for WhatsApp conversations only)
+- **Connection Pooling**: StaticPool with pre-ping enabled
+- **Foreign Keys**: Enforced with SET NULL on delete
 
 ## Configuration
 
