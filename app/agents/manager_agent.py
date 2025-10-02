@@ -16,7 +16,9 @@ import logging
 from typing import Any, Dict, Optional, Tuple, AsyncGenerator
 
 # Import your SDK runner and specialized agents.
-from agents import Runner
+from agents import Runner, ItemHelpers
+from openai.types.responses import ResponseTextDeltaEvent
+
 
 # Required agents (adjust to your module paths/names)
 from app.agents.specialized_agents.scheduling_agent import agent as scheduling_agent
@@ -119,6 +121,40 @@ async def _run_leaf(agent_obj: Any, user_input: Any, context: Dict[str, Any], se
         session=session,
     )
 
+async def _run_leaf_streaming(agent_obj: Any, user_input: Any, context: Dict[str, Any], session: Optional[Any]) -> AsyncGenerator[Any, None]:
+    result = Runner.run_streamed(
+        agent_obj,
+        user_input,
+        context=context,
+        session=session,
+    )
+    async for event in result.stream_events():
+        # Raw response tokens from the LLM
+        if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
+            print(event.data.delta, end="", flush=True)
+            yield event.data.delta
+
+        # Higher level events: message output, tool calls, etc
+        elif event.type == "run_item_stream_event":
+            name = event.name  # e.g. 'tool_called', 'tool_output', 'message_output_created'
+            item = event.item
+            if name == "tool_called":
+                # tool was called
+                pass
+            elif name == "tool_output":
+                # tool output received
+                pass
+            elif name == "message_output_created":
+                # the difference between this and raw response is that this is higher level, after tool calls etc
+                text = ItemHelpers.text_message_output(item)
+                pass
+
+        # If the agent is switching (handoff) to another agent
+        elif event.type == "agent_updated_stream_event":
+            # agent switched
+            pass
+
+
 def _maybe_release_lock(wa_id: str, leaf_result: Any) -> None:
     """
     Convention: if the leaf agent returns a dict with {"router_done": True}
@@ -166,16 +202,34 @@ async def run_manager_streaming(user_input: str, user_id: str, image_urls: list 
         "user_id": user_id,
         "channel": "chat"
     }
+    session = None  # Placeholder for session management if needed
     
-    # Get the full response first
-    result = await run_manager(user_input, context, session=None)
-    
-    # Extract final output from result
-    if hasattr(result, 'final_output'):
-        full_response = str(result.final_output)
-    else:
-        full_response = str(result)
-    
-    # For now, yield the full response as a single chunk
-    # This can be enhanced to stream word by word or sentence by sentence
-    yield full_response
+    wa_id = (context or {}).get("user_id") or ""
+    text  = _extract_text(user_input)
+
+    log.info("🔵 MANAGER ROUTER: user_id=%s", wa_id)
+    log.info("🔵 MANAGER ROUTER: Input: %r", user_input)
+
+    # 1) Reset handling: user wants out → clear lock and provide reset response
+    if RESET_KEYWORDS.search(text):
+        _clear_lock(wa_id)
+        log.info("🔄 MANAGER ROUTER: Reset keywords detected, cleared lock")
+        # Provide a helpful reset response instead of routing to another agent
+        yield "I've reset our conversation. How can I help you today? You can ask about scheduling appointments, our services, or anything else."
+
+    # 2) If there is an active lock, honor it (sticky routing)
+    active = _get_lock(wa_id)
+    if active and active in AGENTS:
+        log.info("🔒 MANAGER ROUTER: Sticky route to %s", active)
+        async for chunk in _run_leaf_streaming(AGENTS[active], user_input, context, session):
+            _maybe_release_lock(wa_id, chunk)  # release if leaf says it's done
+            yield chunk
+
+
+    # 3) No lock → detect intent once and lock
+    intent = _detect_intent(text)
+    _set_lock(wa_id, intent)
+    log.info("🔐 MANAGER ROUTER: New lock set: %s", intent)
+    async for chunk in _run_leaf_streaming(AGENTS[intent], user_input, context, session):
+        _maybe_release_lock(wa_id, chunk)
+        yield chunk

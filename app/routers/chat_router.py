@@ -29,10 +29,10 @@ async def chat(request: Request,
         audio_urls = chat_message_request.audio_urls or []
 
         # Use the message service to handle the incoming message
-        content = await message_service.handle_incoming_chat_message(
-            user_id="chat_user",
-            content=content,
-            image_urls=media_urls
+        content = await message_service.handle_incoming_chat_message_v1(
+            request=request,
+            message=content,
+            media_urls=media_urls
         )
         return ChatMessageResponse(content=content)
     except Exception as exception:
@@ -54,10 +54,10 @@ async def chat_stream(request: Request,
         audio_urls = chat_message_request.audio_urls or []
 
         return StreamingResponse(
-            message_service.handle_incoming_chat_message_streaming(
-                user_id="chat_user",
-                content=content,
-                image_urls=media_urls
+            message_service.handle_incoming_chat_message_streaming_v1(
+                request=request,
+                message=content,
+                media_urls=media_urls
             ),
             media_type="text/plain",
             headers={
