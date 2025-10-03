@@ -13,6 +13,7 @@ Key Features:
 """
 
 import uuid
+import hashlib
 from datetime import datetime, timedelta
 from typing import Optional, Union
 from sqlalchemy.orm import Session
@@ -41,49 +42,30 @@ class SessionService:
         Returns:
             The active agent name if session is locked, None otherwise
         """
-        # Find the connection for this device
-        connection = self.connection_repo.get_by_device_id(device_id)
-        if not connection:
-            return None
-        
-        # Find the latest conversation state for this connection's user
-        # We need to get the patient profile first, then the conversation state
-        # For now, let's create a simple lookup by device_id in conversation_states
-        # This is a simplified approach - in production you might want to link through user/patient_profile
-        
-        # Get all conversation states and find the one with matching device_id
-        # We'll use a custom query for this
         try:
-            # Try to convert device_id to UUID, fallback to string comparison
-            device_uuid = uuid.UUID(device_id) if len(device_id) == 36 else None
-        except ValueError:
-            device_uuid = None
-        
-        if device_uuid:
-            conversation_state = self.db.query(ConversationState).join(
-                Connection, ConversationState.patient_profile_id == Connection.user_id
-            ).filter(
-                Connection.device_id == device_uuid,
-                ConversationState.active_agent.isnot(None),
-                ConversationState.locked_at.isnot(None)
-            ).order_by(ConversationState.locked_at.desc()).first()
-        else:
-            # For non-UUID device IDs, use the device_id field
+            # Convert device_id to deterministic UUID
+            device_hash = hashlib.md5(device_id.encode()).hexdigest()
+            device_uuid = uuid.UUID(device_hash[:32])
+            
             conversation_state = self.db.query(ConversationState).filter(
-                ConversationState.device_id == device_id,
+                ConversationState.patient_profile_id == device_uuid,
                 ConversationState.active_agent.isnot(None),
                 ConversationState.locked_at.isnot(None)
             ).order_by(ConversationState.locked_at.desc()).first()
-        
-        if not conversation_state:
+            
+            if not conversation_state:
+                return None
+            
+            # Check if session has expired
+            if self._is_session_expired(conversation_state):
+                self.clear_session_lock(device_id)
+                return None
+            
+            return conversation_state.active_agent
+            
+        except Exception as e:
+            print(f"Error getting session lock: {e}")
             return None
-        
-        # Check if session has expired
-        if self._is_session_expired(conversation_state):
-            self.clear_session_lock(device_id)
-            return None
-        
-        return conversation_state.active_agent
     
     def set_session_lock(self, device_id: str, agent_key: str) -> bool:
         """
@@ -97,10 +79,6 @@ class SessionService:
             True if lock was set successfully, False otherwise
         """
         try:
-            # For chat users, we'll skip the connection creation and use device_id directly
-            # This simplifies the implementation for the chat interface
-            # In production, you might want to create proper user/connection records
-            
             # Find or create conversation state
             conversation_state = self._get_or_create_conversation_state(device_id)
             
@@ -154,12 +132,13 @@ class SessionService:
         
         if not conversation_state:
             # Create a new conversation state
-            # For chat users, we'll use a dummy UUID for patient_profile_id
-            # and store the device_id in a comment or separate field
-            dummy_uuid = uuid.uuid4()
+            # For chat users, we'll use a deterministic UUID based on device_id
+            # This ensures the same device_id always gets the same UUID
+            device_hash = hashlib.md5(device_id.encode()).hexdigest()
+            device_uuid = uuid.UUID(device_hash[:32])
+            
             conversation_state = ConversationState(
-                patient_profile_id=dummy_uuid,
-                device_id=device_id,
+                patient_profile_id=device_uuid,
                 current_step=SchedulingStep.INITIAL_CONTACT
             )
             self.db.add(conversation_state)
@@ -171,22 +150,16 @@ class SessionService:
     def _get_conversation_state_by_device(self, device_id: str) -> Optional[ConversationState]:
         """Get conversation state by device ID."""
         try:
-            # Try to convert device_id to UUID, fallback to string comparison
-            device_uuid = uuid.UUID(device_id) if len(device_id) == 36 else None
-        except ValueError:
-            device_uuid = None
-        
-        if device_uuid:
-            return self.db.query(ConversationState).join(
-                Connection, ConversationState.patient_profile_id == Connection.user_id
-            ).filter(
-                Connection.device_id == device_uuid
-            ).order_by(ConversationState.locked_at.desc()).first()
-        else:
-            # For non-UUID device IDs, use the device_id field
+            # Convert device_id to deterministic UUID
+            device_hash = hashlib.md5(device_id.encode()).hexdigest()
+            device_uuid = uuid.UUID(device_hash[:32])
+            
             return self.db.query(ConversationState).filter(
-                ConversationState.device_id == device_id
+                ConversationState.patient_profile_id == device_uuid
             ).order_by(ConversationState.locked_at.desc()).first()
+        except Exception as e:
+            print(f"Error getting conversation state: {e}")
+            return None
     
     def cleanup_expired_sessions(self) -> int:
         """
