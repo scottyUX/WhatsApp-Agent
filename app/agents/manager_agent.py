@@ -28,9 +28,8 @@ try:
 except Exception:
     knowledge_agent = None
 
-# Import session service for persistent session management
-from app.services.session_service import SessionService
-from app.database.db import SessionLocal
+# Note: Session management is now handled by the agents framework
+# through the session parameter passed to Runner.run()
 
 log = logging.getLogger("manager_router")
 log.setLevel(logging.INFO)
@@ -45,40 +44,8 @@ AGENTS: Dict[str, Any] = {"scheduling": scheduling_agent, "image": image_agent}
 if knowledge_agent is not None:
     AGENTS["knowledge"] = knowledge_agent
 
-# ---------- Persistent session management ----------
-def _get_session_service() -> SessionService:
-    """Get a session service instance with database connection."""
-    db = SessionLocal()
-    return SessionService(db)
-
-def _get_lock(wa_id: str) -> Optional[str]:
-    """Get the active agent for a device's conversation session."""
-    try:
-        session_service = _get_session_service()
-        return session_service.get_session_lock(wa_id)
-    except Exception as e:
-        log.error(f"Error getting session lock for {wa_id}: {e}")
-        return None
-
-def _set_lock(wa_id: str, agent_key: str) -> None:
-    """Set a session lock for a device to a specific agent."""
-    try:
-        session_service = _get_session_service()
-        success = session_service.set_session_lock(wa_id, agent_key)
-        if not success:
-            log.error(f"Failed to set session lock for {wa_id} to {agent_key}")
-    except Exception as e:
-        log.error(f"Error setting session lock for {wa_id}: {e}")
-
-def _clear_lock(wa_id: str) -> None:
-    """Clear the session lock for a device."""
-    try:
-        session_service = _get_session_service()
-        success = session_service.clear_session_lock(wa_id)
-        if not success:
-            log.error(f"Failed to clear session lock for {wa_id}")
-    except Exception as e:
-        log.error(f"Error clearing session lock for {wa_id}: {e}")
+# ---------- Session management is now handled by the agents framework ----------
+# The session parameter passed to Runner.run() automatically maintains conversation state
 
 # ---------- Text extraction ----------
 def _extract_text(user_input: Any) -> str:
@@ -105,27 +72,19 @@ async def run_manager(user_input: Any, context: Dict[str, Any], session: Optiona
     log.info("🔵 MANAGER ROUTER: user_id=%s", wa_id)
     log.info("🔵 MANAGER ROUTER: Input: %r", user_input)
 
-    # 1) Reset handling: user wants out → clear lock and provide reset response
+    # 1) Reset handling: user wants out → clear session and provide reset response
     if RESET_KEYWORDS.search(text):
-        _clear_lock(wa_id)
-        log.info("🔄 MANAGER ROUTER: Reset keywords detected, cleared lock")
+        if session:
+            await session.clear_session()
+        log.info("🔄 MANAGER ROUTER: Reset keywords detected, cleared session")
         # Provide a helpful reset response instead of routing to another agent
         return "I've reset our conversation. How can I help you today? You can ask about scheduling appointments, our services, or anything else."
 
-    # 2) If there is an active lock, honor it (sticky routing)
-    active = _get_lock(wa_id)
-    if active and active in AGENTS:
-        log.info("🔒 MANAGER ROUTER: Sticky route to %s", active)
-        result = await _run_leaf(AGENTS[active], user_input, context, session)
-        _maybe_release_lock(wa_id, result)  # release if leaf says it's done
-        return result
-
-    # 3) No lock → detect intent once and lock
+    # 2) Detect intent and route to appropriate agent
+    # The agents framework will handle conversation state through the session parameter
     intent = _detect_intent(text)
-    _set_lock(wa_id, intent)
-    log.info("🔐 MANAGER ROUTER: New lock set: %s", intent)
+    log.info("🔐 MANAGER ROUTER: Routing to %s", intent)
     result = await _run_leaf(AGENTS[intent], user_input, context, session)
-    _maybe_release_lock(wa_id, result)
     return result
 
 async def _run_leaf(agent_obj: Any, user_input: Any, context: Dict[str, Any], session: Optional[Any]) -> Any:
@@ -136,24 +95,8 @@ async def _run_leaf(agent_obj: Any, user_input: Any, context: Dict[str, Any], se
         session=session,
     )
 
-def _maybe_release_lock(wa_id: str, leaf_result: Any) -> None:
-    """
-    Convention: if the leaf agent returns a dict with {"router_done": True}
-    OR {"booking_confirmed": True}, we release the lock.
-    You can extend this with whatever your agents already return.
-    """
-    try:
-        if isinstance(leaf_result, dict):
-            if leaf_result.get("router_done") or leaf_result.get("booking_confirmed"):
-                _clear_lock(wa_id)
-                log.info("🔓 MANAGER ROUTER: Lock released due to completion signal")
-                return
-        # You can also detect special strings if you don't return dicts:
-        if isinstance(leaf_result, str) and "Booking confirmed" in leaf_result:
-            _clear_lock(wa_id)
-            log.info("🔓 MANAGER ROUTER: Lock released due to completion string")
-    except Exception:
-        pass
+# Note: Session management is now handled by the agents framework
+# The session parameter automatically maintains conversation state
 
 # Legacy compatibility - keep the old function signature for message_service.py
 async def run_manager_legacy(user_input, user_id: str, session=None) -> str:
@@ -173,7 +116,7 @@ async def run_manager_legacy(user_input, user_id: str, session=None) -> str:
     else:
         return str(result)
 
-async def run_manager_streaming(user_input: str, user_id: str, image_urls: list = []) -> AsyncGenerator[str, None]:
+async def run_manager_streaming(user_input: str, user_id: str, image_urls: list = [], session = None) -> AsyncGenerator[str, None]:
     """
     Stream the manager response for real-time output.
     For now, this is a simplified implementation that yields the full response.
@@ -185,7 +128,7 @@ async def run_manager_streaming(user_input: str, user_id: str, image_urls: list 
     }
     
     # Get the full response first
-    result = await run_manager(user_input, context, session=None)
+    result = await run_manager(user_input, context, session=session)
     
     # Extract final output from result
     if hasattr(result, 'final_output'):

@@ -5,10 +5,10 @@ from datetime import datetime
 
 from app.services.history_service import HistoryService
 from app.agents.manager_agent import run_manager_legacy, run_manager_streaming
+from agents import SQLiteSession
 from app.database.entities import Message
 from app.models.chat_message import ChatStreamChunk
 from app.utils import transcribe_twilio_media, RequestUtils
-from agents import SQLiteSession
 from app.tools.profile_tools import sanitize_outbound
 
 
@@ -113,11 +113,12 @@ class MessageService:
         """
         print(f"📩 Chat message from {user_id}: {content}")
         
-        # Process through the manager
+        # Process through the manager with session memory
+        session = SQLiteSession(f"chat_{user_id}", "conversations.db")
         result = await run_manager_legacy(
             content,
             user_id,
-            session=None,  # No session memory for chat
+            session=session,
         )
 
         # Store the message in database using user_id as phone_number for chat users
@@ -205,7 +206,8 @@ class MessageService:
         full_response = ""
 
         # Process the message through the manager with streaming
-        async for chunk in run_manager_streaming(content, user_id, image_urls or []):
+        session = SQLiteSession(f"chat_{user_id}", "conversations.db")
+        async for chunk in run_manager_streaming(content, user_id, image_urls or [], session):
             full_response += chunk
             
             # Create a streaming chunk
