@@ -28,8 +28,9 @@ try:
 except Exception:
     knowledge_agent = None
 
-# Note: Session management is now handled by the agents framework
-# through SQLAlchemySession with PostgreSQL persistence
+# Import session service for persistent session management
+from app.services.session_service import SessionService
+from app.database.db import SessionLocal
 
 log = logging.getLogger("manager_router")
 log.setLevel(logging.INFO)
@@ -44,10 +45,40 @@ AGENTS: Dict[str, Any] = {"scheduling": scheduling_agent, "image": image_agent}
 if knowledge_agent is not None:
     AGENTS["knowledge"] = knowledge_agent
 
-# ---------- Session management handled by agents framework ----------
-# The SQLAlchemySession automatically manages conversation history
-# We use a simple in-memory store for agent routing (sticky routing)
-_agent_locks: Dict[str, str] = {}  # device_id -> agent_key
+# ---------- Persistent session management ----------
+def _get_session_service() -> SessionService:
+    """Get a session service instance with database connection."""
+    db = SessionLocal()
+    return SessionService(db)
+
+def _get_lock(wa_id: str) -> Optional[str]:
+    """Get the active agent for a device's conversation session."""
+    try:
+        session_service = _get_session_service()
+        return session_service.get_session_lock(wa_id)
+    except Exception as e:
+        log.error(f"Error getting session lock for {wa_id}: {e}")
+        return None
+
+def _set_lock(wa_id: str, agent_key: str) -> None:
+    """Set a session lock for a device to a specific agent."""
+    try:
+        session_service = _get_session_service()
+        success = session_service.set_session_lock(wa_id, agent_key)
+        if not success:
+            log.error(f"Failed to set session lock for {wa_id} to {agent_key}")
+    except Exception as e:
+        log.error(f"Error setting session lock for {wa_id}: {e}")
+
+def _clear_lock(wa_id: str) -> None:
+    """Clear the session lock for a device."""
+    try:
+        session_service = _get_session_service()
+        success = session_service.clear_session_lock(wa_id)
+        if not success:
+            log.error(f"Failed to clear session lock for {wa_id}")
+    except Exception as e:
+        log.error(f"Error clearing session lock for {wa_id}: {e}")
 
 # ---------- Text extraction ----------
 def _extract_text(user_input: Any) -> str:
@@ -74,26 +105,23 @@ async def run_manager(user_input: Any, context: Dict[str, Any], session: Optiona
     log.info("🔵 MANAGER ROUTER: user_id=%s", wa_id)
     log.info("🔵 MANAGER ROUTER: Input: %r", user_input)
 
-    # 1) Reset handling: user wants out → clear session and provide reset response
+    # 1) Reset handling: user wants out → clear lock and provide reset response
     if RESET_KEYWORDS.search(text):
-        if session:
-            await session.clear_session()
-        # Clear agent lock
-        _agent_locks.pop(wa_id, None)
-        log.info("🔄 MANAGER ROUTER: Reset keywords detected, cleared session and lock")
+        _clear_lock(wa_id)
+        log.info("🔄 MANAGER ROUTER: Reset keywords detected, cleared lock")
         return "I've reset our conversation. How can I help you today? You can ask about scheduling appointments, our services, or anything else."
 
-    # 2) If there is an active agent lock, honor it (sticky routing)
-    active_agent = _agent_locks.get(wa_id)
-    if active_agent and active_agent in AGENTS:
-        log.info("🔒 MANAGER ROUTER: Sticky route to %s", active_agent)
-        result = await _run_leaf(AGENTS[active_agent], user_input, context, session)
+    # 2) If there is an active lock, honor it (sticky routing)
+    active = _get_lock(wa_id)
+    if active and active in AGENTS:
+        log.info("🔒 MANAGER ROUTER: Sticky route to %s", active)
+        result = await _run_leaf(AGENTS[active], user_input, context, session)
         _maybe_release_lock(wa_id, result)
         return result
 
-    # 3) No lock → detect intent and set lock
+    # 3) No lock → detect intent once and lock
     intent = _detect_intent(text)
-    _agent_locks[wa_id] = intent
+    _set_lock(wa_id, intent)
     log.info("🔐 MANAGER ROUTER: New lock set: %s", intent)
     result = await _run_leaf(AGENTS[intent], user_input, context, session)
     _maybe_release_lock(wa_id, result)
@@ -116,12 +144,12 @@ def _maybe_release_lock(wa_id: str, leaf_result: Any) -> None:
     try:
         if isinstance(leaf_result, dict):
             if leaf_result.get("router_done") or leaf_result.get("booking_confirmed"):
-                _agent_locks.pop(wa_id, None)
+                _clear_lock(wa_id)
                 log.info("🔓 MANAGER ROUTER: Lock released due to completion signal")
                 return
         # You can also detect special strings if you don't return dicts:
         if isinstance(leaf_result, str) and "Booking confirmed" in leaf_result:
-            _agent_locks.pop(wa_id, None)
+            _clear_lock(wa_id)
             log.info("🔓 MANAGER ROUTER: Lock released due to completion string")
     except Exception:
         pass

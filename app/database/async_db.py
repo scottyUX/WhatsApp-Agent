@@ -9,10 +9,10 @@ from sqlalchemy.pool import NullPool
 from app.config.settings import settings
 
 
-# Convert sync DATABASE_URL to async
+# Convert sync DATABASE_URL to async using psycopg3
 DATABASE_URL = settings.DATABASE_URL
 if DATABASE_URL.startswith("postgresql://"):
-    ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+    ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://")
 else:
     ASYNC_DATABASE_URL = DATABASE_URL
 

@@ -5,8 +5,8 @@ from datetime import datetime
 
 from app.services.history_service import HistoryService
 from app.agents.manager_agent import run_manager_legacy, run_manager_streaming
-from agents.extensions.memory.sqlalchemy_session import SQLAlchemySession
-from app.database.async_db import get_async_engine
+# Note: Using custom session management for serverless persistence
+# The agents framework sessions require asyncpg which has deployment issues
 from app.database.entities import Message
 from app.models.chat_message import ChatStreamChunk
 from app.utils import transcribe_twilio_media, RequestUtils
@@ -114,17 +114,12 @@ class MessageService:
         """
         print(f"📩 Chat message from {user_id}: {content}")
         
-        # Process through the manager with SQLAlchemy session
-        # This provides persistent conversation history across serverless invocations
-        session = SQLAlchemySession(
-            f"chat_{user_id}", 
-            engine=get_async_engine(), 
-            create_tables=True
-        )
+        # Process through the manager
+        # Session management is handled by the manager agent internally
         result = await run_manager_legacy(
             content,
             user_id,
-            session=session,
+            session=None,
         )
 
         # Store the message in database using user_id as phone_number for chat users
@@ -212,13 +207,8 @@ class MessageService:
         full_response = ""
 
         # Process the message through the manager with streaming
-        # Use SQLAlchemy session for persistent conversation history
-        session = SQLAlchemySession(
-            f"chat_{user_id}", 
-            engine=get_async_engine(), 
-            create_tables=True
-        )
-        async for chunk in run_manager_streaming(content, user_id, image_urls or [], session):
+        # Session management is handled by the manager agent internally
+        async for chunk in run_manager_streaming(content, user_id, image_urls or [], None):
             full_response += chunk
             
             # Create a streaming chunk
