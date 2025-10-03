@@ -6,7 +6,12 @@
       "use": "@vercel/python",
       "config": {
         "runtime": "python3.12.6",
-        "installCommand": "pip install -r requirements.txt"
+        "installCommand": "pip install --upgrade pip setuptools wheel && pip install --only-binary=all asyncpg==0.29.0 && pip install -r requirements.txt",
+        "env": {
+          "PYTHONPATH": "/var/task",
+          "LDFLAGS": "-L/usr/lib/x86_64-linux-gnu",
+          "CPPFLAGS": "-I/usr/include"
+        }
       }
     }
   ],
