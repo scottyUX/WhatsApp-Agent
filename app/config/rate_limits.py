@@ -11,16 +11,19 @@ class RateLimitConfig:
     DEFAULT = "100/minute"
     
     # Webhook endpoints, will be even more loosened after we have signature validation
-    WHATSAPP = "1000/minute" 
-
-    # Chat endpoints
-    CHAT = "1000/minute"
+    WEBHOOK = "1000/minute" 
     
     # Health check endpoints (very lenient)
     HEALTH_CHECK = "50/minute"
     
     # Test endpoints (stricter since they're for development)
     TEST = "30/minute"
+    
+    # Chat endpoints
+    CHAT = "50/minute"
+    
+    # WhatsApp endpoints
+    WHATSAPP = "100/minute"
 
 
 def get_rate_limit_key(request: Request) -> str:

@@ -39,10 +39,17 @@ Si preguntan cómo comenzar:
 
 Sé claro. Sé preciso. Da prioridad a la confianza y tranquilidad del paciente.
 """,
-    model=settings.LANGUAGE_AGENT_MODEL,
+    model="gpt-4o",
     tools=[FileSearchTool(vector_store_ids=[settings.VECTOR_STORE_ES])],
-    model_settings=ModelSettings(
-        temperature=settings.LANGUAGE_AGENT_TEMPERATURE,
-        max_tokens=settings.LANGUAGE_AGENT_MAX_TOKENS
-    ),
 )
+
+# Export the agent and its tool for use by the manager
+spanish_knowledge_tool = spanish_agent.as_tool(
+    tool_name="spanish_knowledge_expert",
+    tool_description="Answers general questions about Istanbul Medic services, procedures, and information in Spanish."
+)
+
+async def run_agent(user_input: str) -> str:
+    print("Spanish agent activated")
+    result = await Runner.run(spanish_agent, user_input)
+    return result.final_output or "Lo siento, no pude encontrar una respuesta en español."
