@@ -28,9 +28,13 @@ async def chat(request: Request,
         media_urls = chat_message_request.media_urls or []
         audio_urls = chat_message_request.audio_urls or []
 
+        # Extract device ID from headers for conversation state management
+        device_id = request.headers.get("X-Device-ID", "default_user")
+        user_id = f"chat_{device_id}"
+
         # Use the message service to handle the incoming message
         content = await message_service.handle_incoming_chat_message(
-            user_id="chat_user",
+            user_id=user_id,
             content=content,
             image_urls=media_urls
         )
@@ -53,9 +57,13 @@ async def chat_stream(request: Request,
         media_urls = chat_message_request.media_urls or []
         audio_urls = chat_message_request.audio_urls or []
 
+        # Extract device ID from headers for conversation state management
+        device_id = request.headers.get("X-Device-ID", "default_user")
+        user_id = f"chat_{device_id}"
+
         return StreamingResponse(
             message_service.handle_incoming_chat_message_streaming(
-                user_id="chat_user",
+                user_id=user_id,
                 content=content,
                 image_urls=media_urls
             ),
