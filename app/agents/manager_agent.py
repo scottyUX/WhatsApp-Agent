@@ -28,6 +28,10 @@ try:
 except Exception:
     knowledge_agent = None
 
+# Import session service for persistent session management
+from app.services.session_service import SessionService
+from app.database.db import SessionLocal
+
 log = logging.getLogger("manager_router")
 log.setLevel(logging.INFO)
 
@@ -41,27 +45,40 @@ AGENTS: Dict[str, Any] = {"scheduling": scheduling_agent, "image": image_agent}
 if knowledge_agent is not None:
     AGENTS["knowledge"] = knowledge_agent
 
-# ---------- Simple session store (swap with Redis/Postgres in prod) ----------
-_LOCK_TTL_SECONDS = 24 * 60 * 60  # 24h
-_session_store: Dict[str, Dict[str, Any]] = {}  # { wa_id: {"active_agent": str, "locked_at": int} }
-
-def _now() -> int:
-    return int(time.time())
+# ---------- Persistent session management ----------
+def _get_session_service() -> SessionService:
+    """Get a session service instance with database connection."""
+    db = SessionLocal()
+    return SessionService(db)
 
 def _get_lock(wa_id: str) -> Optional[str]:
-    s = _session_store.get(wa_id)
-    if not s:
+    """Get the active agent for a device's conversation session."""
+    try:
+        session_service = _get_session_service()
+        return session_service.get_session_lock(wa_id)
+    except Exception as e:
+        log.error(f"Error getting session lock for {wa_id}: {e}")
         return None
-    if _now() - s.get("locked_at", 0) > _LOCK_TTL_SECONDS:
-        _session_store.pop(wa_id, None)
-        return None
-    return s.get("active_agent")
 
 def _set_lock(wa_id: str, agent_key: str) -> None:
-    _session_store[wa_id] = {"active_agent": agent_key, "locked_at": _now()}
+    """Set a session lock for a device to a specific agent."""
+    try:
+        session_service = _get_session_service()
+        success = session_service.set_session_lock(wa_id, agent_key)
+        if not success:
+            log.error(f"Failed to set session lock for {wa_id} to {agent_key}")
+    except Exception as e:
+        log.error(f"Error setting session lock for {wa_id}: {e}")
 
 def _clear_lock(wa_id: str) -> None:
-    _session_store.pop(wa_id, None)
+    """Clear the session lock for a device."""
+    try:
+        session_service = _get_session_service()
+        success = session_service.clear_session_lock(wa_id)
+        if not success:
+            log.error(f"Failed to clear session lock for {wa_id}")
+    except Exception as e:
+        log.error(f"Error clearing session lock for {wa_id}: {e}")
 
 # ---------- Text extraction ----------
 def _extract_text(user_input: Any) -> str:

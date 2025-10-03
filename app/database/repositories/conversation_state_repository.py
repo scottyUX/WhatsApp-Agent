@@ -51,3 +51,38 @@ class ConversationStateRepository:
             ConversationState.patient_profile_id == patient_profile_id,
             ConversationState.deleted == False
         ).order_by(desc(ConversationState.last_activity)).first()
+    
+    def get_by_device_id(self, device_id: Union[str, uuid.UUID]) -> Optional[ConversationState]:
+        """Get the latest conversation state for a device ID."""
+        # Handle both UUID and string device IDs
+        if isinstance(device_id, str):
+            try:
+                # Try to convert to UUID, but don't fail if it's not a valid UUID
+                device_id = uuid.UUID(device_id)
+            except ValueError:
+                # Keep as string if it's not a valid UUID
+                pass
+        
+        # This is a simplified lookup - in production you might want to join through connections
+        return self.db.query(ConversationState).filter(
+            ConversationState.device_id == device_id,
+            ConversationState.deleted == False
+        ).order_by(desc(ConversationState.last_activity)).first()
+    
+    def update_session_lock(self, conversation_state_id: Union[str, uuid.UUID], 
+                          active_agent: Optional[str] = None, 
+                          locked_at: Optional[datetime] = None) -> Optional[ConversationState]:
+        """Update session lock fields for a conversation state."""
+        if isinstance(conversation_state_id, str):
+            conversation_state_id = uuid.UUID(conversation_state_id)
+        
+        conversation_state = self.get_by_id(conversation_state_id)
+        if conversation_state:
+            if active_agent is not None:
+                conversation_state.active_agent = active_agent
+            if locked_at is not None:
+                conversation_state.locked_at = locked_at
+            conversation_state.last_activity = datetime.now()
+            return self.save(conversation_state)
+        
+        return None

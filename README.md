@@ -8,7 +8,16 @@ A multilingual medical tourism assistant for IstanbulMedic that handles WhatsApp
 - **OpenAI GPT-4** - Language detection and AI agents
 - **Twilio** - WhatsApp integration
 - **ElevenLabs** - Audio transcription
+- **PostgreSQL** - Database with persistent session management
 - **Python 3.12+** - Runtime
+
+## Key Features
+
+- **Multilingual Support** - Handles multiple languages automatically
+- **Persistent Session Management** - Maintains conversation state across serverless restarts
+- **Real-time Streaming** - Live chat responses with streaming support
+- **Device-based Sessions** - Each device maintains its own conversation context
+- **Database Integration** - Full PostgreSQL integration for data persistence
 
 ## Setup
 

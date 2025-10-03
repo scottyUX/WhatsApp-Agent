@@ -10,6 +10,7 @@ This guide covers the chat integration functionality for the WhatsApp Medical Ag
 - [API Endpoints](#api-endpoints)
 - [Database Integration](#database-integration)
 - [User Management](#user-management)
+- [Persistent Session Management](#persistent-session-management)
 - [Streaming Responses](#streaming-responses)
 - [Implementation Examples](#implementation-examples)
 - [Testing](#testing)
@@ -18,7 +19,7 @@ This guide covers the chat integration functionality for the WhatsApp Medical Ag
 ## Chat Architecture
 
 ### Overview
-The chat integration provides website users with direct access to the same AI agent system used for WhatsApp, with real-time streaming responses and full database integration.
+The chat integration provides website users with direct access to the same AI agent system used for WhatsApp, with real-time streaming responses, full database integration, and **persistent conversation state management** for serverless environments.
 
 ### Architecture Diagram
 ```
@@ -160,6 +161,154 @@ user = history_service.get_or_create_user(chat_phone)
 - **Phone Number**: Used as unique identifier (`chat_{user_id}`)
 - **Name**: Optional, can be collected during conversation
 - **Created At**: Timestamp of first interaction
+
+## Persistent Session Management
+
+### Overview
+The chat system uses **persistent session management** to maintain conversation state across serverless function restarts. This ensures that conversations don't reset between messages, providing a seamless user experience.
+
+### Key Features
+- **Device-based Sessions**: Each device gets its own conversation session
+- **Persistent Storage**: Session data stored in PostgreSQL database
+- **TTL Support**: Automatic cleanup of expired sessions (24 hours default)
+- **Serverless Compatible**: Works across multiple serverless instances
+
+### Session Storage Architecture
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Device ID (X-Device-ID)                 │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────────┐
+│                Session Service                              │
+│  • Device ID → Connection lookup                           │
+│  • Connection → Conversation State                         │
+│  • Session lock management                                 │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────────┐
+│              PostgreSQL Database                            │
+│  • conversation_states table                               │
+│  • active_agent, locked_at, session_ttl fields            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Database Schema
+The session management extends the existing `conversation_states` table:
+
+```sql
+-- Additional fields for session management
+ALTER TABLE conversation_states 
+ADD COLUMN active_agent VARCHAR(50),
+ADD COLUMN locked_at TIMESTAMP WITH TIME ZONE,
+ADD COLUMN session_ttl INTEGER NOT NULL DEFAULT 86400;
+```
+
+### Session Lifecycle
+
+#### 1. Session Creation
+```python
+# When a user sends their first message
+device_id = request.headers.get("X-Device-ID", "default_user")
+session_service.set_session_lock(device_id, "scheduling")
+```
+
+#### 2. Session Retrieval
+```python
+# On subsequent messages
+active_agent = session_service.get_session_lock(device_id)
+if active_agent:
+    # Continue with existing agent
+    result = await run_agent(active_agent, user_input)
+else:
+    # Create new session
+    intent = detect_intent(user_input)
+    session_service.set_session_lock(device_id, intent)
+```
+
+#### 3. Session Cleanup
+```python
+# Automatic cleanup of expired sessions
+expired_count = session_service.cleanup_expired_sessions()
+```
+
+### Configuration
+
+#### Session TTL
+```python
+# Default session time-to-live (24 hours)
+DEFAULT_SESSION_TTL = 86400  # seconds
+
+# Custom TTL per session
+conversation_state.session_ttl = 3600  # 1 hour
+```
+
+#### Device ID Header
+```javascript
+// Frontend sends device ID in headers
+const deviceId = ensureDeviceId();
+headers.set('X-Device-ID', deviceId);
+```
+
+### Error Handling
+
+#### Database Connection Issues
+```python
+try:
+    active_agent = session_service.get_session_lock(device_id)
+except DatabaseError:
+    # Fallback to stateless mode
+    active_agent = None
+```
+
+#### Session Expiration
+```python
+if session_service._is_session_expired(conversation_state):
+    session_service.clear_session_lock(device_id)
+    # Start new session
+```
+
+### Monitoring and Debugging
+
+#### Session Status Logging
+```python
+log.info(f"Session lock for {device_id}: {active_agent}")
+log.info(f"Session locked at: {conversation_state.locked_at}")
+log.info(f"Session TTL: {conversation_state.session_ttl}")
+```
+
+#### Cleanup Monitoring
+```python
+# Monitor expired session cleanup
+expired_count = session_service.cleanup_expired_sessions()
+log.info(f"Cleaned up {expired_count} expired sessions")
+```
+
+### Benefits
+
+#### For Users
+- ✅ **No Conversation Resets**: Messages maintain context
+- ✅ **Seamless Experience**: Natural conversation flow
+- ✅ **Cross-Device Consistency**: Same experience across devices
+
+#### For Developers
+- ✅ **Serverless Compatible**: Works in Vercel, AWS Lambda, etc.
+- ✅ **Scalable**: Handles multiple concurrent users
+- ✅ **Reliable**: Database-backed persistence
+- ✅ **Maintainable**: Clean separation of concerns
+
+### Migration from In-Memory Storage
+
+The system automatically migrates from the old in-memory session store:
+
+```python
+# Old (in-memory)
+_session_store: Dict[str, Dict[str, Any]] = {}
+
+# New (persistent)
+session_service = SessionService(db)
+active_agent = session_service.get_session_lock(device_id)
+```
 
 ## Streaming Responses
 

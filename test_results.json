@@ -1,0 +1,43 @@
+{
+  "passed": 1,
+  "total": 6,
+  "duration": 142.09754,
+  "results": [
+    {
+      "test": "Basic Connectivity",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-10-03T15:27:39.005919"
+    },
+    {
+      "test": "Single Device - First Message",
+      "success": false,
+      "details": "HTTPSConnectionPool(host='whats-app-agent-git-feat-scheduling-agent-d-39828d-whatsapp-bot.vercel.app', port=443): Read timed out.",
+      "timestamp": "2025-10-03T15:28:09.234794"
+    },
+    {
+      "test": "Multi Device - Device 1",
+      "success": false,
+      "details": "HTTPSConnectionPool(host='whats-app-agent-git-feat-scheduling-agent-d-39828d-whatsapp-bot.vercel.app', port=443): Read timed out.",
+      "timestamp": "2025-10-03T15:28:39.410746"
+    },
+    {
+      "test": "Persistence - Message 1",
+      "success": false,
+      "details": "HTTPSConnectionPool(host='whats-app-agent-git-feat-scheduling-agent-d-39828d-whatsapp-bot.vercel.app', port=443): Read timed out.",
+      "timestamp": "2025-10-03T15:29:09.584234"
+    },
+    {
+      "test": "Debug Text Removal",
+      "success": false,
+      "details": "HTTPSConnectionPool(host='whats-app-agent-git-feat-scheduling-agent-d-39828d-whatsapp-bot.vercel.app', port=443): Read timed out.",
+      "timestamp": "2025-10-03T15:29:39.849699"
+    },
+    {
+      "test": "Error Handling - Missing Device ID",
+      "success": false,
+      "details": "HTTPSConnectionPool(host='whats-app-agent-git-feat-scheduling-agent-d-39828d-whatsapp-bot.vercel.app', port=443): Read timed out.",
+      "timestamp": "2025-10-03T15:29:54.822551"
+    }
+  ]
+}
