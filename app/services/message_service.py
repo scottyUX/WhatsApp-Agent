@@ -5,7 +5,8 @@ from datetime import datetime
 
 from app.services.history_service import HistoryService
 from app.agents.manager_agent import run_manager_legacy, run_manager_streaming
-from agents import SQLiteSession
+from agents.extensions.memory.sqlalchemy_session import SQLAlchemySession
+from app.database.db import engine
 from app.database.entities import Message
 from app.models.chat_message import ChatStreamChunk
 from app.utils import transcribe_twilio_media, RequestUtils
@@ -114,7 +115,8 @@ class MessageService:
         print(f"📩 Chat message from {user_id}: {content}")
         
         # Process through the manager with session memory
-        session = SQLiteSession(f"chat_{user_id}", "conversations.db")
+        # Use SQLAlchemy session with PostgreSQL for serverless persistence
+        session = SQLAlchemySession(f"chat_{user_id}", engine=engine, create_tables=True)
         result = await run_manager_legacy(
             content,
             user_id,
@@ -206,7 +208,8 @@ class MessageService:
         full_response = ""
 
         # Process the message through the manager with streaming
-        session = SQLiteSession(f"chat_{user_id}", "conversations.db")
+        # Use SQLAlchemy session with PostgreSQL for serverless persistence
+        session = SQLAlchemySession(f"chat_{user_id}", engine=engine, create_tables=True)
         async for chunk in run_manager_streaming(content, user_id, image_urls or [], session):
             full_response += chunk
             
