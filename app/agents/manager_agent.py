@@ -29,7 +29,7 @@ except Exception:
     knowledge_agent = None
 
 # Note: Session management is now handled by the agents framework
-# through the session parameter passed to Runner.run()
+# through SQLAlchemySession with PostgreSQL persistence
 
 log = logging.getLogger("manager_router")
 log.setLevel(logging.INFO)
@@ -44,8 +44,10 @@ AGENTS: Dict[str, Any] = {"scheduling": scheduling_agent, "image": image_agent}
 if knowledge_agent is not None:
     AGENTS["knowledge"] = knowledge_agent
 
-# ---------- Session management is now handled by the agents framework ----------
-# The session parameter passed to Runner.run() automatically maintains conversation state
+# ---------- Session management handled by agents framework ----------
+# The SQLAlchemySession automatically manages conversation history
+# We use a simple in-memory store for agent routing (sticky routing)
+_agent_locks: Dict[str, str] = {}  # device_id -> agent_key
 
 # ---------- Text extraction ----------
 def _extract_text(user_input: Any) -> str:
@@ -76,15 +78,25 @@ async def run_manager(user_input: Any, context: Dict[str, Any], session: Optiona
     if RESET_KEYWORDS.search(text):
         if session:
             await session.clear_session()
-        log.info("🔄 MANAGER ROUTER: Reset keywords detected, cleared session")
-        # Provide a helpful reset response instead of routing to another agent
+        # Clear agent lock
+        _agent_locks.pop(wa_id, None)
+        log.info("🔄 MANAGER ROUTER: Reset keywords detected, cleared session and lock")
         return "I've reset our conversation. How can I help you today? You can ask about scheduling appointments, our services, or anything else."
 
-    # 2) Detect intent and route to appropriate agent
-    # The agents framework will handle conversation state through the session parameter
+    # 2) If there is an active agent lock, honor it (sticky routing)
+    active_agent = _agent_locks.get(wa_id)
+    if active_agent and active_agent in AGENTS:
+        log.info("🔒 MANAGER ROUTER: Sticky route to %s", active_agent)
+        result = await _run_leaf(AGENTS[active_agent], user_input, context, session)
+        _maybe_release_lock(wa_id, result)
+        return result
+
+    # 3) No lock → detect intent and set lock
     intent = _detect_intent(text)
-    log.info("🔐 MANAGER ROUTER: Routing to %s", intent)
+    _agent_locks[wa_id] = intent
+    log.info("🔐 MANAGER ROUTER: New lock set: %s", intent)
     result = await _run_leaf(AGENTS[intent], user_input, context, session)
+    _maybe_release_lock(wa_id, result)
     return result
 
 async def _run_leaf(agent_obj: Any, user_input: Any, context: Dict[str, Any], session: Optional[Any]) -> Any:
@@ -95,8 +107,24 @@ async def _run_leaf(agent_obj: Any, user_input: Any, context: Dict[str, Any], se
         session=session,
     )
 
-# Note: Session management is now handled by the agents framework
-# The session parameter automatically maintains conversation state
+def _maybe_release_lock(wa_id: str, leaf_result: Any) -> None:
+    """
+    Convention: if the leaf agent returns a dict with {"router_done": True}
+    OR {"booking_confirmed": True}, we release the lock.
+    You can extend this with whatever your agents already return.
+    """
+    try:
+        if isinstance(leaf_result, dict):
+            if leaf_result.get("router_done") or leaf_result.get("booking_confirmed"):
+                _agent_locks.pop(wa_id, None)
+                log.info("🔓 MANAGER ROUTER: Lock released due to completion signal")
+                return
+        # You can also detect special strings if you don't return dicts:
+        if isinstance(leaf_result, str) and "Booking confirmed" in leaf_result:
+            _agent_locks.pop(wa_id, None)
+            log.info("🔓 MANAGER ROUTER: Lock released due to completion string")
+    except Exception:
+        pass
 
 # Legacy compatibility - keep the old function signature for message_service.py
 async def run_manager_legacy(user_input, user_id: str, session=None) -> str:
