@@ -3,6 +3,7 @@ from fastapi import Request
 import json
 from datetime import datetime
 
+from agents import SQLiteSession
 from app.services.history_service import HistoryService
 from app.agents.manager_agent import run_manager_legacy, run_manager_streaming
 # Note: Using custom session management for serverless persistence

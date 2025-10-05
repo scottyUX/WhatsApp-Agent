@@ -6,7 +6,7 @@ persistent session storage instead of in-memory storage.
 """
 
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import Mock, patch, AsyncMock, call
 from datetime import datetime, timedelta
 
 from app.agents.manager_agent import run_manager, _get_lock, _set_lock, _clear_lock
@@ -109,22 +109,26 @@ class TestManagerAgentPersistentSessions:
         mock_session_service.set_session_lock.return_value = True
         mock_session_service.clear_session_lock.return_value = True
         
-        # Mock the agent runner
         mock_agent = Mock()
-        mock_agent.run = AsyncMock(return_value="Test response")
-        
+
         with patch('app.agents.manager_agent._get_session_service', return_value=mock_session_service), \
              patch('app.agents.manager_agent.AGENTS', {"scheduling": mock_agent}), \
-             patch('app.agents.manager_agent._detect_intent', return_value="scheduling"):
-            
+             patch('app.agents.manager_agent._detect_intent', return_value="scheduling"), \
+             patch('app.agents.manager_agent.Runner.run', new_callable=AsyncMock) as mock_runner:
+            mock_runner.return_value = "Test response"
             result = await run_manager("I want to schedule an appointment", sample_context)
         
         # Verify session operations
         mock_session_service.get_session_lock.assert_called_once_with("test-device-123")
         mock_session_service.set_session_lock.assert_called_once_with("test-device-123", "scheduling")
         
-        # Verify agent was called
-        mock_agent.run.assert_called_once()
+        # Verify agent was run through the SDK
+        mock_runner.assert_awaited_once_with(
+            mock_agent,
+            "I want to schedule an appointment",
+            context=sample_context,
+            session=None,
+        )
         
         # Verify result
         assert result == "Test response"
@@ -137,21 +141,25 @@ class TestManagerAgentPersistentSessions:
         mock_session_service.get_session_lock.return_value = "scheduling"
         mock_session_service.clear_session_lock.return_value = True
         
-        # Mock the agent runner
         mock_agent = Mock()
-        mock_agent.run = AsyncMock(return_value="Test response")
-        
+
         with patch('app.agents.manager_agent._get_session_service', return_value=mock_session_service), \
-             patch('app.agents.manager_agent.AGENTS', {"scheduling": mock_agent}):
-            
+             patch('app.agents.manager_agent.AGENTS', {"scheduling": mock_agent}), \
+             patch('app.agents.manager_agent.Runner.run', new_callable=AsyncMock) as mock_runner:
+            mock_runner.return_value = "Test response"
             result = await run_manager("I want to schedule an appointment", sample_context)
         
         # Verify session operations
         mock_session_service.get_session_lock.assert_called_once_with("test-device-123")
         mock_session_service.set_session_lock.assert_not_called()  # Should not set new lock
         
-        # Verify agent was called
-        mock_agent.run.assert_called_once()
+        # Verify agent was run through the SDK
+        mock_runner.assert_awaited_once_with(
+            mock_agent,
+            "I want to schedule an appointment",
+            context=sample_context,
+            session=None,
+        )
         
         # Verify result
         assert result == "Test response"
@@ -181,21 +189,25 @@ class TestManagerAgentPersistentSessions:
         mock_session_service.get_session_lock.return_value = None
         mock_session_service.set_session_lock.return_value = True
         
-        # Mock the agent runner
         mock_agent = Mock()
-        mock_agent.run = AsyncMock(return_value="Test response")
-        
+
         with patch('app.agents.manager_agent._get_session_service', return_value=mock_session_service), \
              patch('app.agents.manager_agent.AGENTS', {"scheduling": mock_agent}), \
-             patch('app.agents.manager_agent._detect_intent', return_value="scheduling"):
-            
+             patch('app.agents.manager_agent._detect_intent', return_value="scheduling"), \
+             patch('app.agents.manager_agent.Runner.run', new_callable=AsyncMock) as mock_runner:
+            mock_runner.return_value = "Test response"
             result = await run_manager("I want to schedule an appointment", sample_context)
         
         # Verify new session was created
         mock_session_service.set_session_lock.assert_called_once_with("test-device-123", "scheduling")
         
-        # Verify agent was called
-        mock_agent.run.assert_called_once()
+        # Verify agent was run through the SDK
+        mock_runner.assert_awaited_once_with(
+            mock_agent,
+            "I want to schedule an appointment",
+            context=sample_context,
+            session=None,
+        )
         
         # Verify result
         assert result == "Test response"
@@ -210,25 +222,46 @@ class TestManagerAgentIntegration:
         device_id = "test-device-persistence"
         context = {"user_id": device_id, "channel": "chat"}
         
-        # First request - should create new session
-        with patch('app.agents.manager_agent._get_session_service') as mock_get_service:
-            mock_service = Mock()
-            mock_service.get_session_lock.return_value = None
-            mock_service.set_session_lock.return_value = True
-            mock_get_service.return_value = mock_service
-            
-            with patch('app.agents.manager_agent.AGENTS', {"scheduling": Mock()}):
-                result1 = await run_manager("I want to schedule an appointment", context)
-        
-        # Second request - should use existing session
-        with patch('app.agents.manager_agent._get_session_service') as mock_get_service:
-            mock_service = Mock()
-            mock_service.get_session_lock.return_value = "scheduling"  # Existing session
-            mock_service.clear_session_lock.return_value = True
-            mock_get_service.return_value = mock_service
-            
-            with patch('app.agents.manager_agent.AGENTS', {"scheduling": Mock()}):
-                result2 = await run_manager("What are your available times?", context)
-        
-        # Verify that second request used existing session
-        mock_service.set_session_lock.assert_not_called()  # Should not create new session
+        with patch('app.agents.manager_agent.Runner.run', new_callable=AsyncMock) as mock_runner:
+            mock_runner.side_effect = ["Test response 1", "Test response 2"]
+
+            # First request - should create new session
+            with patch('app.agents.manager_agent._get_session_service') as mock_get_service:
+                first_session_service = Mock()
+                first_session_service.get_session_lock.return_value = None
+                first_session_service.set_session_lock.return_value = True
+                mock_get_service.return_value = first_session_service
+
+                scheduling_agent_first = Mock()
+                with patch('app.agents.manager_agent.AGENTS', {"scheduling": scheduling_agent_first}):
+                    result1 = await run_manager("I want to schedule an appointment", context)
+
+            # Second request - should use existing session
+            with patch('app.agents.manager_agent._get_session_service') as mock_get_service:
+                second_session_service = Mock()
+                second_session_service.get_session_lock.return_value = "scheduling"
+                second_session_service.clear_session_lock.return_value = True
+                mock_get_service.return_value = second_session_service
+
+                scheduling_agent_second = Mock()
+                with patch('app.agents.manager_agent.AGENTS', {"scheduling": scheduling_agent_second}):
+                    result2 = await run_manager("What are your available times?", context)
+
+        assert result1 == "Test response 1"
+        assert result2 == "Test response 2"
+        first_session_service.set_session_lock.assert_called_once_with(device_id, "scheduling")
+        second_session_service.set_session_lock.assert_not_called()
+        mock_runner.assert_has_awaits([
+            call(
+                scheduling_agent_first,
+                "I want to schedule an appointment",
+                context=context,
+                session=None,
+            ),
+            call(
+                scheduling_agent_second,
+                "What are your available times?",
+                context=context,
+                session=None,
+            ),
+        ])
