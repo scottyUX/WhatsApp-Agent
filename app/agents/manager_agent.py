@@ -77,6 +77,9 @@ def _clear_lock(wa_id: str) -> None:
         success = session_service.clear_session_lock(wa_id)
         if not success:
             log.error(f"Failed to clear session lock for {wa_id}")
+        convo_cleared = session_service.clear_openai_conversation_id(wa_id)
+        if not convo_cleared:
+            log.error(f"Failed to clear OpenAI conversation id for {wa_id}")
     except Exception as e:
         log.error(f"Error clearing session lock for {wa_id}: {e}")
 

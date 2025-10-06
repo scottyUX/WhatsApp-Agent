@@ -43,6 +43,15 @@ ADD COLUMN locked_at TIMESTAMP WITH TIME ZONE,
 ADD COLUMN session_ttl INTEGER NOT NULL DEFAULT 86400;
 ```
 
+```sql
+-- OpenAI managed memory support (device + conversation identifiers)
+ALTER TABLE conversation_states
+ADD COLUMN device_id VARCHAR(255);
+
+ALTER TABLE conversation_states
+ADD COLUMN openai_conversation_id VARCHAR(255);
+```
+
 #### 3. Manager Agent Updates (`app/agents/manager_agent.py`)
 - **Replaced**: In-memory `_session_store` with `SessionService`
 - **Added**: Database connection management

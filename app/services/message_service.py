@@ -3,12 +3,14 @@ from fastapi import Request
 import json
 from datetime import datetime
 
-from agents import SQLiteSession
+from sqlalchemy.orm import Session
+from agents.memory.openai_conversations_session import OpenAIConversationsSession
 from app.services.history_service import HistoryService
-from app.agents.manager_agent import run_manager_legacy, run_manager_streaming
-# Note: Using custom session management for serverless persistence
-# The agents framework sessions require asyncpg which has deployment issues
+from app.agents.simple_manager_agent import run_manager_legacy, run_manager_streaming
+# Note: Using OpenAI managed conversation sessions for persistent memory
 from app.database.entities import Message
+from app.services.session_service import SessionService
+from app.database.db import SessionLocal
 from app.models.chat_message import ChatStreamChunk
 from app.utils import transcribe_twilio_media, RequestUtils
 from app.tools.profile_tools import sanitize_outbound
@@ -17,6 +19,56 @@ from app.tools.profile_tools import sanitize_outbound
 class MessageService:
     def __init__(self, history_service: HistoryService):
         self.history_service = history_service
+
+    def _prepare_agent_session(self, device_id: str) -> tuple[Optional[Session], Optional[SessionService], Optional[OpenAIConversationsSession]]:
+        """Create database-backed session service and OpenAI conversation session."""
+        db = None
+        session_service: Optional[SessionService] = None
+        session: Optional[OpenAIConversationsSession] = None
+
+        try:
+            db = SessionLocal()
+            session_service = SessionService(db)
+            conversation_id = session_service.get_openai_conversation_id(device_id)
+        except Exception as exc:
+            print(f"⚠️ Failed to initialize session service for {device_id}: {exc}")
+            conversation_id = None
+            if db is not None:
+                db.close()
+                db = None
+
+        try:
+            session = OpenAIConversationsSession(
+                conversation_id=conversation_id,
+            )
+        except Exception as exc:
+            print(f"⚠️ OpenAI conversation session unavailable for {device_id}: {exc}")
+            session = None
+
+        return db, session_service, session
+
+    async def _persist_openai_conversation(
+        self,
+        session_service: Optional[SessionService],
+        device_id: str,
+        session: Optional[OpenAIConversationsSession],
+    ) -> None:
+        if not session_service or not session:
+            return
+
+        try:
+            conversation_id = await session._get_session_id()
+            session_service.set_openai_conversation_id(device_id, conversation_id)
+        except Exception as exc:
+            print(f"⚠️ Failed to persist OpenAI conversation id for {device_id}: {exc}")
+
+    @staticmethod
+    def _close_db(db: Optional[Session]) -> None:
+        if db:
+            try:
+                db.close()
+            except Exception as exc:
+                print(f"⚠️ Failed to close session database handle: {exc}")
 
     def _format_message_history(self, messages: List[Message]) -> str:
         """Format message history for context."""
@@ -43,33 +95,9 @@ class MessageService:
         """
         print(f"📩 WhatsApp message from {phone_number}: {body}")
         
-        # Create session for conversation memory
-        session_id = f"whatsapp_{phone_number}"
-        session = None
-        
-        try:
-            import os
-            import sqlite3
-            
-            # Ensure the directory exists
-            db_dir = "/tmp/whatsapp_sessions"
-            os.makedirs(db_dir, exist_ok=True)
-            
-            # Use absolute path for SQLite database
-            db_path = os.path.join(db_dir, "conversations.db")
-            
-            # Configure SQLite with WAL mode for better concurrency
-            conn = sqlite3.connect(db_path)
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute("PRAGMA synchronous=NORMAL")
-            conn.execute("PRAGMA temp_store=MEMORY")
-            conn.close()
-            
-            session = SQLiteSession(session_id, db_path)
-            print(f"✅ SQLite session created: {db_path}")
-        except Exception as e:
-            print(f"⚠️ SQLite session not available: {e}")
-            session = None
+        # Create OpenAI-backed session for conversation memory
+        db_handle, session_service, agent_session = self._prepare_agent_session(phone_number)
+        session = agent_session
 
         # Process the message through the agent manager with session memory
         # When using session memory, pass a string instead of a list
@@ -78,11 +106,15 @@ class MessageService:
         if image_urls:
             content += f" [Images: {', '.join(image_urls)}]"
 
-        result = await run_manager_legacy(
-            content,
-            phone_number,
-            session=session,
-        )
+        try:
+            result = await run_manager_legacy(
+                content,
+                phone_number,
+                session=session,
+            )
+            await self._persist_openai_conversation(session_service, phone_number, agent_session)
+        finally:
+            self._close_db(db_handle)
 
         # Store the message in database
         await self.history_service.store_message(
@@ -111,17 +143,16 @@ class MessageService:
         image_urls: List[str] = None,
     ) -> str:
         """
-        Handle incoming chat message (for website integration).
+        Handle incoming chat message with simplified Q&A response.
         """
         print(f"📩 Chat message from {user_id}: {content}")
         
-        # Process through the manager
-        # Session management is handled by the manager agent internally
-        result = await run_manager_legacy(
-            content,
-            user_id,
-            session=None,
-        )
+        try:
+            # Simplified call to simple manager - no complex session management
+            result = await run_manager_legacy(content, user_id, None)
+        except Exception as e:
+            print(f"❌ Error in chat message handling: {e}")
+            result = "I apologize, but I'm experiencing technical difficulties. Please try again or contact our support team directly."
 
         # Store the message in database using user_id as phone_number for chat users
         # This ensures we can track chat conversations separately from WhatsApp
@@ -191,7 +222,7 @@ class MessageService:
         image_urls: List[str] = None,
     ) -> AsyncGenerator[str, None]:
         """
-        Handle incoming chat message with streaming response.
+        Handle incoming chat message with simplified streaming response.
         """
         print(f"📩 Chat streaming message from {user_id}: {content}")
         
@@ -207,20 +238,31 @@ class MessageService:
         # Collect the full response for logging
         full_response = ""
 
-        # Process the message through the manager with streaming
-        # Session management is handled by the manager agent internally
-        async for chunk in run_manager_streaming(content, user_id, image_urls or [], None):
-            full_response += chunk
-            
-            # Create a streaming chunk
-            stream_chunk = ChatStreamChunk(
-                content=chunk,
+        try:
+            # Simplified streaming - direct call to simple manager
+            async for chunk in run_manager_streaming(content, user_id, image_urls or [], None):
+                full_response += chunk
+                
+                # Create a streaming chunk
+                stream_chunk = ChatStreamChunk(
+                    content=chunk,
+                    timestamp=datetime.now().isoformat(),
+                    is_final=False
+                )
+                
+                # Send as Server-Sent Events format
+                yield f"data: {json.dumps(stream_chunk.__dict__)}\n\n"
+
+        except Exception as e:
+            print(f"❌ Error in streaming: {e}")
+            # Send error response
+            error_chunk = ChatStreamChunk(
+                content="I apologize, but I'm experiencing technical difficulties. Please try again.",
                 timestamp=datetime.now().isoformat(),
                 is_final=False
             )
-            
-            # Send as Server-Sent Events format
-            yield f"data: {json.dumps(stream_chunk.__dict__)}\n\n"
+            yield f"data: {json.dumps(error_chunk.__dict__)}\n\n"
+            full_response = "Error occurred"
 
         # Send final chunk to indicate completion
         final_chunk = ChatStreamChunk(

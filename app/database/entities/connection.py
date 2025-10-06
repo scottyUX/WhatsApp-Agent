@@ -9,9 +9,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
 from .mixins import IdMixin
+from .user import User
 
 if typing.TYPE_CHECKING:
-    from .user import User
     from .conversation import Conversation
 
 

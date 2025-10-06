@@ -1,9 +1,14 @@
+import typing
 import uuid
 from sqlalchemy import Column, String, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 
-from app.database.db import Base
+if typing.TYPE_CHECKING:
+    from .media import Media
+
+from .base import Base
 
 
 class Message(Base):
@@ -19,3 +24,5 @@ class Message(Base):
     __table_args__ = (
         CheckConstraint("direction in ('incoming','outgoing')", name="direction_check"),
     )
+
+    media = relationship("Media", back_populates="message", cascade="all, delete-orphan")

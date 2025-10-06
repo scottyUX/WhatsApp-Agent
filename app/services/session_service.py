@@ -12,8 +12,6 @@ Key Features:
 - Integration with existing conversation_states table
 """
 
-import uuid
-import hashlib
 from datetime import datetime, timedelta
 from typing import Optional, Union
 from sqlalchemy.orm import Session
@@ -43,17 +41,11 @@ class SessionService:
             The active agent name if session is locked, None otherwise
         """
         try:
-            # Convert device_id to deterministic UUID
-            device_hash = hashlib.md5(device_id.encode()).hexdigest()
-            device_uuid = uuid.UUID(device_hash[:32])
-            
-            conversation_state = self.db.query(ConversationState).filter(
-                ConversationState.patient_profile_id == device_uuid,
-                ConversationState.active_agent.isnot(None),
-                ConversationState.locked_at.isnot(None)
-            ).order_by(ConversationState.locked_at.desc()).first()
+            conversation_state = self._get_conversation_state_by_device(device_id)
             
             if not conversation_state:
+                return None
+            if not conversation_state.active_agent or not conversation_state.locked_at:
                 return None
             
             # Check if session has expired
@@ -121,41 +113,38 @@ class SessionService:
         """Check if a session has expired based on TTL."""
         if not conversation_state.locked_at:
             return True
-        
+
+        locked_at = conversation_state.locked_at
+        if locked_at.tzinfo is not None and locked_at.tzinfo.utcoffset(locked_at) is not None:
+            now = datetime.now(tz=locked_at.tzinfo)
+        else:
+            now = datetime.now()
+
         ttl_seconds = conversation_state.session_ttl or 86400  # Default 24 hours
-        expiry_time = conversation_state.locked_at + timedelta(seconds=ttl_seconds)
-        return datetime.now() > expiry_time
+        expiry_time = locked_at + timedelta(seconds=ttl_seconds)
+        return now > expiry_time
     
     def _get_or_create_conversation_state(self, device_id: str) -> ConversationState:
         """Get or create a conversation state for a device."""
         conversation_state = self._get_conversation_state_by_device(device_id)
         
         if not conversation_state:
-            # Create a new conversation state
-            # For chat users, we'll use a deterministic UUID based on device_id
-            # This ensures the same device_id always gets the same UUID
-            device_hash = hashlib.md5(device_id.encode()).hexdigest()
-            device_uuid = uuid.UUID(device_hash[:32])
-            
             conversation_state = ConversationState(
-                patient_profile_id=device_uuid,
-                current_step=SchedulingStep.INITIAL_CONTACT
+                patient_profile_id=None,
+                current_step=SchedulingStep.INITIAL_CONTACT.value,
+                device_id=device_id,
             )
             self.db.add(conversation_state)
             self.db.commit()
             self.db.refresh(conversation_state)
-        
+
         return conversation_state
-    
+
     def _get_conversation_state_by_device(self, device_id: str) -> Optional[ConversationState]:
         """Get conversation state by device ID."""
         try:
-            # Convert device_id to deterministic UUID
-            device_hash = hashlib.md5(device_id.encode()).hexdigest()
-            device_uuid = uuid.UUID(device_hash[:32])
-            
             return self.db.query(ConversationState).filter(
-                ConversationState.patient_profile_id == device_uuid
+                ConversationState.device_id == device_id
             ).order_by(ConversationState.locked_at.desc()).first()
         except Exception as e:
             print(f"Error getting conversation state: {e}")
@@ -179,13 +168,48 @@ class SessionService:
                 if self._is_session_expired(session):
                     session.active_agent = None
                     session.locked_at = None
+                    session.openai_conversation_id = None
                     cleaned_count += 1
-            
+
             if cleaned_count > 0:
                 self.db.commit()
-            
+
             return cleaned_count
             
         except Exception as e:
             print(f"Error cleaning up expired sessions: {e}")
             return 0
+
+    def get_openai_conversation_id(self, device_id: str) -> Optional[str]:
+        """Retrieve the stored OpenAI conversation ID for a device."""
+        try:
+            conversation_state = self._get_conversation_state_by_device(device_id)
+            return conversation_state.openai_conversation_id if conversation_state else None
+        except Exception as e:
+            print(f"Error getting OpenAI conversation id: {e}")
+            return None
+
+    def set_openai_conversation_id(self, device_id: str, conversation_id: Optional[str]) -> bool:
+        """Persist the OpenAI conversation ID for a device."""
+        try:
+            conversation_state = self._get_or_create_conversation_state(device_id)
+            conversation_state.openai_conversation_id = conversation_id
+            conversation_state.last_activity = datetime.now()
+            self.conversation_state_repo.save(conversation_state)
+            return True
+        except Exception as e:
+            print(f"Error setting OpenAI conversation id: {e}")
+            return False
+
+    def clear_openai_conversation_id(self, device_id: str) -> bool:
+        """Clear the OpenAI conversation ID for a device."""
+        try:
+            conversation_state = self._get_conversation_state_by_device(device_id)
+            if conversation_state:
+                conversation_state.openai_conversation_id = None
+                conversation_state.last_activity = datetime.now()
+                self.conversation_state_repo.save(conversation_state)
+            return True
+        except Exception as e:
+            print(f"Error clearing OpenAI conversation id: {e}")
+            return False

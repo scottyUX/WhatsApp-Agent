@@ -19,18 +19,44 @@ class ConversationState(Base, IdMixin):
     __tablename__ = "conversation_states"
 
     # Foreign key to patient profile (nullable for chat sessions)
-    patient_profile_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("patient_profiles.id"), nullable=True)
+    patient_profile_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("patient_profiles.id"),
+        nullable=True,
+        default=None,
+    )
 
     # Device ID for chat sessions (alternative to patient_profile_id)
-    device_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    device_id: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+        default=None,
+    )
 
     # Conversation state fields
-    current_step: Mapped[SchedulingStep] = mapped_column(nullable=False)
-    last_activity: Mapped[datetime] = mapped_column(server_default=func.now())
+    current_step: Mapped[str] = mapped_column(
+        nullable=False,
+        default=SchedulingStep.INITIAL_CONTACT.value,
+    )
+    last_activity: Mapped[datetime] = mapped_column(
+        server_default=func.now(),
+        init=False,
+    )
     
     # Session lock fields for conversation state management
-    active_agent: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    locked_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    active_agent: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+        default=None,
+    )
+    locked_at: Mapped[Optional[datetime]] = mapped_column(
+        nullable=True,
+        default=None,
+    )
+    openai_conversation_id: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+        default=None,
+    )
     session_ttl: Mapped[int] = mapped_column(Integer, nullable=False, default=86400)  # 24 hours in seconds
 
     # Relationships

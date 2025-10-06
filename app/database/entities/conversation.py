@@ -11,7 +11,6 @@ from .mixins import IdMixin
 
 if typing.TYPE_CHECKING:
     from .connection import Connection
-    from .message import Message
 
 
 class Conversation(Base, IdMixin):
@@ -22,7 +21,6 @@ class Conversation(Base, IdMixin):
 
     # Relationships
     connection: Mapped["Connection"] = relationship("Connection", back_populates="conversations", init=False)
-    messages: Mapped[list["Message"]] = relationship("Message", back_populates="conversation", default_factory=list, init=False)
 
     def __repr__(self):
         return f"<Conversation {self.id}>"
