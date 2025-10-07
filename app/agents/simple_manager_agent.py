@@ -89,7 +89,7 @@ async def run_simple_manager_streaming(user_input: str, user_id: str, image_urls
         from agents import Runner
         
         # Stream the response directly from the knowledge agent
-        async for chunk in Runner.run_stream(
+        async for chunk in Runner.run_streamed(
             simple_knowledge_agent,
             user_input,
             context=context,
