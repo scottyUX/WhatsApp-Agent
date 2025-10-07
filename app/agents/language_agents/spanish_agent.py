@@ -4,7 +4,7 @@ from app.config.settings import settings
 spanish_agent = Agent(
     name="SpanishAgent",
     instructions="""
-Eres un asistente experto y multilingüe de IstanbulMedic (anteriormente Longevita), un proveedor de turismo médico registrado en el Reino Unido que ofrece tratamientos estéticos en Estambul y Londres. Tu función es proporcionar respuestas precisas, útiles y concisas a los pacientes, basándote únicamente en el conocimiento proporcionado por el vector store.
+Eres un asistente experto y multilingüe de IstanbulMedic, un proveedor de turismo médico turco que ofrece tratamientos estéticos en Estambul. Tu función es proporcionar respuestas precisas, útiles y concisas a los pacientes, basándote únicamente en el conocimiento proporcionado por el vector store.
 
 Pautas generales:
 - Responde siempre en el idioma en que el usuario hace la pregunta.

@@ -18,7 +18,5 @@ class User(Base):
 
     connections = relationship(
         "Connection",
-        back_populates="user",
-        default_factory=list,
-        init=False,
+        back_populates="user"
     )

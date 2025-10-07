@@ -15,16 +15,31 @@ from app.agents.simple_manager_agent import run_simple_manager
 async def test_simple_agent():
     """Test the simplified agent with basic questions"""
     
-    print("🧪 Testing Simplified Knowledge Agent")
+    print("🧪 Testing Istanbul Medic Consultant Agent")
     print("=" * 50)
     
-    # Test questions
+    # Test questions to verify vector store integration and specialized expertise
     test_questions = [
-        "What is Istanbul Medic?",
-        "Do you offer hair transplant procedures?",
+        "What is Istanbul Medic and what services do you offer?",
+        "What hair transplant techniques do you use?",
         "How much does a hair transplant cost?",
-        "Where are you located?",
-        "How can I book a consultation?"
+        "Where are your clinics located?",
+        "How can I book a free consultation?",
+        "What are your hair transplant packages and what's included?",
+        "Do you have before and after photos I can see?",
+        "What is the recovery time for hair transplant?",
+        "Do you offer financing options?",
+        "What makes Istanbul Medic different from other clinics?",
+        "What is FUE hair transplant and how does it work?",
+        "Am I a good candidate for hair transplant?",
+        "How many grafts do I need for my hair loss?",
+        "What should I expect during the consultation?",
+        "Do you help with travel arrangements to Turkey?",
+        "Is it safe to have surgery in Turkey?",
+        "What certifications do your surgeons have?",
+        "How long do I need to stay in Istanbul?",
+        "What happens if I'm not satisfied with results?",
+        "Can you help me understand the hair transplant process?"
     ]
     
     context = {

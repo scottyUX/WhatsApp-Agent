@@ -15,9 +15,13 @@ class Settings:
 
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
     
-    VECTOR_STORE_EN: str = os.getenv("VECTOR_STORE_EN")
+    # Vector Store IDs (OpenAI Vector Store)
+    VECTOR_STORE_EN: str = "vs_68e499ece62c81918ec6d98221c1722a"  # Istanbul Medic specific knowledge base
     VECTOR_STORE_DE: str = os.getenv("VECTOR_STORE_DE")
     VECTOR_STORE_ES: str = os.getenv("VECTOR_STORE_ES")
+    
+    # Legacy vector store ID (kept for reference)
+    SIMPLIFIED_VECTOR_STORE_ID: str = "vs_68e42f2ab970819194ba16b0e0699bcb"
     
     ELEVENLABS_API_KEY: str = os.getenv("ELEVENLABS_API_KEY")
     

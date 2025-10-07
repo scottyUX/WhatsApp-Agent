@@ -1,0 +1,13 @@
+COMPREHENSIVE HAIR TRANSPLANT KNOWLEDGE BASE
+============================================
+Combined content from Istanbul Medic and Lenus Clinic
+Created: 2025-10-06
+Purpose: Vector store content for AI agent
+
+This file contains comprehensive information about hair transplant services
+from two leading clinics in Turkey: Istanbul Medic and Lenus Clinic.
+
+============================================
+ISTANBUL MEDIC CONTENT
+============================================
+
