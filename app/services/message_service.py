@@ -45,14 +45,6 @@ class MessageService:
                 keep_last_n_turns=settings.KEEP_LAST_N_TURNS,
             )
             print(f"🧠 Memory session created for {device_id}: context_limit={settings.CONTEXT_LIMIT}, keep_last_n_turns={settings.KEEP_LAST_N_TURNS}")
-            
-            # Optional: Add session debugging for development
-            if settings.DEBUG:
-                try:
-                    items = await session.get_items()
-                    print(f"🔍 Session {device_id} has {len(items)} items in memory")
-                except Exception as e:
-                    print(f"⚠️ Could not retrieve session items for debugging: {e}")
         except Exception as exc:
             print(f"⚠️ OpenAI conversation session unavailable for {device_id}: {exc}")
             session = None
