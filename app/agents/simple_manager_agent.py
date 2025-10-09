@@ -88,14 +88,26 @@ async def run_simple_manager_streaming(user_input: str, user_id: str, image_urls
         # Use the knowledge agent's streaming capability
         from agents import Runner
         
-        # Stream the response directly from the knowledge agent
-        async for chunk in Runner.run_streamed(
+        # Get the streaming result
+        result = Runner.run_streamed(
             simple_knowledge_agent,
             user_input,
             context=context,
             session=session,
-        ):
-            yield chunk
+        )
+        
+        # Stream the events from the result
+        async for event in result.stream_events():
+            # Extract text content from raw response events
+            if hasattr(event, 'type') and 'raw_response' in event.type:
+                if hasattr(event, 'data') and hasattr(event.data, 'response'):
+                    response = event.data.response
+                    if hasattr(response, 'output') and response.output:
+                        for output_item in response.output:
+                            if hasattr(output_item, 'content') and output_item.content:
+                                for content_item in output_item.content:
+                                    if hasattr(content_item, 'text') and content_item.text:
+                                        yield content_item.text
             
         log.info("✅ SIMPLE MANAGER STREAMING: Response streamed successfully")
         
