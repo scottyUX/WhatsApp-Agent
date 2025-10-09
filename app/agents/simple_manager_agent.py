@@ -102,6 +102,10 @@ async def run_simple_manager_streaming(user_input: str, user_id: str, image_urls
             session=session,
         )
         
+        # Track whether we've already streamed any delta text to avoid
+        # duplicating the final full message from raw_response.
+        streamed_any_delta = False
+
         # Stream the events from the result
         async for event in result.stream_events():
             # 1) Yield incremental deltas ASAP (varies by provider/version)
@@ -112,9 +116,11 @@ async def run_simple_manager_streaming(user_input: str, user_id: str, image_urls
 
                     # Common delta fields
                     if hasattr(data, 'delta') and isinstance(data.delta, str) and data.delta:
+                        streamed_any_delta = True
                         yield data.delta
                         continue
                     if hasattr(data, 'text') and isinstance(data.text, str) and data.text and ('delta' in etype or 'stream' in etype):
+                        streamed_any_delta = True
                         yield data.text
                         continue
 
@@ -123,7 +129,7 @@ async def run_simple_manager_streaming(user_input: str, user_id: str, image_urls
                 pass
 
             # 2) Fallback: extract full text from raw response events (end of run)
-            if hasattr(event, 'type') and 'raw_response' in str(event.type):
+            if not streamed_any_delta and hasattr(event, 'type') and 'raw_response' in str(event.type):
                 if hasattr(event, 'data') and hasattr(event.data, 'response'):
                     response = event.data.response
                     if hasattr(response, 'output') and response.output:
