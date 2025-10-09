@@ -76,6 +76,12 @@ async def run_simple_manager_streaming(user_input: str, user_id: str, image_urls
     Yields:
         Chunks of the response as they are generated
     """
+    # Validate input
+    if not user_input or not isinstance(user_input, str) or user_input.strip() == "":
+        log.error("❌ SIMPLE MANAGER STREAMING: Invalid input: %r", user_input)
+        yield "I apologize, but I didn't receive a valid message. Please try again with a proper question."
+        return
+    
     context = {
         "user_id": user_id,
         "channel": "chat"

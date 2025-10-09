@@ -28,6 +28,10 @@ async def chat(request: Request,
         media_urls = chat_message_request.media_urls or []
         audio_urls = chat_message_request.audio_urls or []
 
+        # Validate content is not None or empty
+        if not content or content.strip() == "":
+            raise HTTPException(status_code=400, detail="Content cannot be empty")
+
         # Extract device ID from headers for conversation state management
         device_id = request.headers.get("X-Device-ID", "default_user")
         user_id = f"chat_{device_id}"
@@ -56,6 +60,10 @@ async def chat_stream(request: Request,
         content = chat_message_request.content
         media_urls = chat_message_request.media_urls or []
         audio_urls = chat_message_request.audio_urls or []
+
+        # Validate content is not None or empty
+        if not content or content.strip() == "":
+            raise HTTPException(status_code=400, detail="Content cannot be empty")
 
         # Extract device ID from headers for conversation state management
         device_id = request.headers.get("X-Device-ID", "default_user")
