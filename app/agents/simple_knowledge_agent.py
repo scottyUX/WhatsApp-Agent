@@ -72,7 +72,7 @@ SAFETY AND TRUST:
 
 NEXT STEPS GUIDANCE:
 - Always suggest booking a free consultation
-- Provide the Cal.com booking link as an HTML button: <a href="https://cal.com/istanbulmedic" target="_blank" style="display: inline-block; background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0;">📅 Book Free Consultation</a>
+- Provide the Cal.com booking link as an HTML button: <a href="https://cal.com/scott-davis-nmxvsr/15min" target="_blank" style="display: inline-block; background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0;">📅 Book Free Consultation</a>
 - Recommend sharing photos for assessment
 - Explain the treatment planning process
 - Mention travel and accommodation support
@@ -94,8 +94,8 @@ CONSULTATION BOOKING:
 
 CAL.COM BOOKING:
 - When users want to schedule a consultation, provide the Cal.com booking link as an HTML button
-- The booking link is: https://cal.com/istanbulmedic
-- Always include an HTML button: <a href="https://cal.com/istanbulmedic" target="_blank" style="display: inline-block; background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0;">📅 Book Free Consultation</a>
+- The booking link is: https://cal.com/scott-davis-nmxvsr/15min
+- Always include an HTML button: <a href="https://cal.com/scott-davis-nmxvsr/15min" target="_blank" style="display: inline-block; background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0;">📅 Book Free Consultation</a>
 - Explain that this is the easiest way to book a free consultation
 - Mention that they can also contact us directly if they prefer
 
