@@ -32,7 +32,7 @@ if settings.DEBUG:
 # Root endpoint
 @app.get("/")
 async def read_root():
-    return "V2"
+    return "V3"
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=settings.PORT)
