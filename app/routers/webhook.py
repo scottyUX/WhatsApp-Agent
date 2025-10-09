@@ -70,6 +70,20 @@ async def istanbulMedic_webhook(request: Request, message_service: MessageServic
 async def cal_webhook(request: Request, message_service: MessageServiceDep):
     """Handle Cal.com webhook when user books an appointment."""
     try:
+        # Verify webhook secret (optional but recommended)
+        webhook_secret = request.headers.get("x-cal-signature-256")
+        expected_secret = "istanbul-medic-webhook-2025"
+        
+        # Log the signature for debugging
+        if webhook_secret:
+            print(f"📅 CAL.COM WEBHOOK: Received signature: {webhook_secret}")
+        else:
+            print("📅 CAL.COM WEBHOOK: No signature provided")
+        
+        # Note: Cal.com uses HMAC-SHA256 for signature verification
+        # For now, we accept all webhooks but log the signature
+        # In production, you might want to verify the signature properly
+        
         # Get the webhook payload
         payload = await request.json()
         
@@ -92,6 +106,14 @@ async def cal_webhook(request: Request, message_service: MessageServiceDep):
             attendee_name = attendee.get("name", "Guest")
             attendee_email = attendee.get("email", "")
             
+            # Extract additional patient information if available
+            responses = booking.get("responses", {})
+            patient_phone = responses.get("phone", "")
+            patient_message = responses.get("message", "")
+            patient_age = responses.get("age", "")
+            hair_loss_pattern = responses.get("hair_loss_pattern", "")
+            time_zone = attendee.get("timeZone", "")
+            
             # Prepare booking data for real-time notification
             booking_data = {
                 "id": booking_id,
@@ -99,7 +121,12 @@ async def cal_webhook(request: Request, message_service: MessageServiceDep):
                 "startTime": start_time,
                 "endTime": end_time,
                 "attendee_name": attendee_name,
-                "attendee_email": attendee_email
+                "attendee_email": attendee_email,
+                "patient_phone": patient_phone,
+                "patient_message": patient_message,
+                "patient_age": patient_age,
+                "hair_loss_pattern": hair_loss_pattern,
+                "time_zone": time_zone
             }
             
             print(f"📅 CAL.COM WEBHOOK: Generated booking data: {booking_data}")
