@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from app.models.message import TwilioWebhookData
 from app.config.rate_limits import limiter, RateLimitConfig
 from app.dependencies import MessageServiceDep
+from app.services.websocket_manager import manager
 from datetime import datetime
 import json
 
@@ -91,29 +92,38 @@ async def cal_webhook(request: Request, message_service: MessageServiceDep):
             attendee_name = attendee.get("name", "Guest")
             attendee_email = attendee.get("email", "")
             
-            # Format the confirmation message
-            confirmation_message = f"""
-🎉 **Booking Confirmed!**
-
-Thank you, {attendee_name}! Your consultation has been successfully scheduled.
-
-**Booking Details:**
-• **Event:** {event_title}
-• **Date & Time:** {start_time}
-• **Duration:** 15 minutes
-• **Booking ID:** {booking_id}
-
-We'll send you a calendar invite shortly. If you need to reschedule or have any questions, please don't hesitate to reach out.
-
-Looking forward to speaking with you!
-            """.strip()
+            # Prepare booking data for real-time notification
+            booking_data = {
+                "id": booking_id,
+                "title": event_title,
+                "startTime": start_time,
+                "endTime": end_time,
+                "attendee_name": attendee_name,
+                "attendee_email": attendee_email
+            }
             
-            print(f"📅 CAL.COM WEBHOOK: Generated confirmation: {confirmation_message}")
+            print(f"📅 CAL.COM WEBHOOK: Generated booking data: {booking_data}")
+            
+            # Try to send real-time notification to connected users
+            # For now, we'll try to send to a default user or all connected users
+            connected_users = manager.get_connected_users()
+            print(f"📅 CAL.COM WEBHOOK: Connected users: {connected_users}")
+            
+            if connected_users:
+                # Send to all connected users (you can modify this logic)
+                for user_id in connected_users:
+                    success = await manager.send_booking_confirmation(user_id, booking_data)
+                    if success:
+                        print(f"📅 CAL.COM WEBHOOK: Sent confirmation to user {user_id}")
+                    else:
+                        print(f"❌ CAL.COM WEBHOOK: Failed to send to user {user_id}")
+            else:
+                print("⚠️ CAL.COM WEBHOOK: No connected users to notify")
             
             # Store the booking confirmation in database
             # You can add logic here to store booking details in your database
             
-            return {"status": "success", "message": "Booking confirmation processed"}
+            return {"status": "success", "message": "Booking confirmation processed and notifications sent"}
         
         elif event_type == "BOOKING_CANCELLED":
             print(f"📅 CAL.COM WEBHOOK: Booking cancelled")

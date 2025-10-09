@@ -1,11 +1,12 @@
 import traceback
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 
 from app.models.chat_message import ChatMessageRequest, ChatMessageResponse
 from app.config.rate_limits import limiter, RateLimitConfig
 from app.dependencies import MessageServiceDep
 from app.utils import ErrorUtils
+from app.services.websocket_manager import manager
 
 
 router = APIRouter(
@@ -85,3 +86,18 @@ async def chat_stream(request: Request,
     except Exception as exception:
         traceback.print_exc()
         raise ErrorUtils.toHTTPException(exception)
+
+
+@router.websocket("/ws/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: str, device_id: str = None):
+    """WebSocket endpoint for real-time chat notifications"""
+    await manager.connect(websocket, user_id, device_id)
+    try:
+        while True:
+            # Keep the connection alive and listen for messages
+            data = await websocket.receive_text()
+            # Echo back any messages received (optional)
+            await websocket.send_text(f"Echo: {data}")
+    except WebSocketDisconnect:
+        manager.disconnect(user_id)
+        print(f"🔌 WebSocket disconnected: {user_id}")
