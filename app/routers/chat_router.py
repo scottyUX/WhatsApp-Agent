@@ -6,6 +6,7 @@ from app.models.chat_message import ChatMessageRequest, ChatMessageResponse
 from app.config.rate_limits import limiter, RateLimitConfig
 from app.dependencies import MessageServiceDep
 from app.utils import ErrorUtils
+from app.config.settings import settings
 
 
 router = APIRouter(
@@ -85,3 +86,39 @@ async def chat_stream(request: Request,
     except Exception as exception:
         traceback.print_exc()
         raise ErrorUtils.toHTTPException(exception)
+
+
+@router.delete("/memory/{user_id}")
+@limiter.limit(RateLimitConfig.ADMIN)
+async def clear_user_memory(request: Request, user_id: str, message_service: MessageServiceDep):
+    """Clear conversation memory for a specific user (admin endpoint)."""
+    if not settings.DEBUG:
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    try:
+        success = await message_service.clear_user_session(user_id)
+        if success:
+            return {"status": "success", "message": f"Memory cleared for user {user_id}"}
+        else:
+            return {"status": "error", "message": f"Failed to clear memory for user {user_id}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/memory/{user_id}")
+@limiter.limit(RateLimitConfig.ADMIN)
+async def get_user_memory(request: Request, user_id: str, message_service: MessageServiceDep):
+    """Get conversation memory for a specific user (admin endpoint)."""
+    if not settings.DEBUG:
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    try:
+        items = await message_service.get_session_items(user_id)
+        return {
+            "status": "success", 
+            "user_id": user_id,
+            "item_count": len(items),
+            "items": items
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

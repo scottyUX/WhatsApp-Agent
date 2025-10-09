@@ -34,6 +34,10 @@ class Settings:
     WEBHOOK_VERIFY_TOKEN: str = os.getenv("WEBHOOK_VERIFY_TOKEN")
     TEST_PHONE_NUMBERS: List[str] = [num.strip() for num in os.getenv("TEST_PHONE_NUMBERS", "").split(",") if num.strip()]
     
+    # Memory Management Settings
+    CONTEXT_LIMIT: int = int(os.getenv("CONTEXT_LIMIT", "8"))  # Total turns to keep in context
+    KEEP_LAST_N_TURNS: int = int(os.getenv("KEEP_LAST_N_TURNS", "3"))  # Turns to keep verbatim
+    
     def validate(self):
         required_vars = [
             "TWILIO_ACCOUNT_SID",

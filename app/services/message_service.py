@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from agents.memory.openai_conversations_session import OpenAIConversationsSession
 from app.services.history_service import HistoryService
 from app.agents.simple_manager_agent import run_manager_legacy, run_manager_streaming
+from app.config.settings import settings
 # Note: Using OpenAI managed conversation sessions for persistent memory
 from app.database.entities import Message
 from app.services.session_service import SessionService
@@ -40,12 +41,48 @@ class MessageService:
         try:
             session = OpenAIConversationsSession(
                 conversation_id=conversation_id,
+                context_limit=settings.CONTEXT_LIMIT,
+                keep_last_n_turns=settings.KEEP_LAST_N_TURNS,
             )
+            print(f"🧠 Memory session created for {device_id}: context_limit={settings.CONTEXT_LIMIT}, keep_last_n_turns={settings.KEEP_LAST_N_TURNS}")
+            
+            # Optional: Add session debugging for development
+            if settings.DEBUG:
+                try:
+                    items = await session.get_items()
+                    print(f"🔍 Session {device_id} has {len(items)} items in memory")
+                except Exception as e:
+                    print(f"⚠️ Could not retrieve session items for debugging: {e}")
         except Exception as exc:
             print(f"⚠️ OpenAI conversation session unavailable for {device_id}: {exc}")
             session = None
 
         return db, session_service, session
+
+    async def clear_user_session(self, device_id: str) -> bool:
+        """Clear conversation history for a specific user."""
+        try:
+            db, session_service, session = await self._get_session_components(device_id)
+            if session:
+                await session.clear_session()
+                print(f"🧹 Cleared session for user {device_id}")
+                return True
+            return False
+        except Exception as e:
+            print(f"❌ Failed to clear session for {device_id}: {e}")
+            return False
+
+    async def get_session_items(self, device_id: str) -> list:
+        """Get conversation history for debugging/monitoring."""
+        try:
+            db, session_service, session = await self._get_session_components(device_id)
+            if session:
+                items = await session.get_items()
+                return items
+            return []
+        except Exception as e:
+            print(f"❌ Failed to get session items for {device_id}: {e}")
+            return []
 
     async def _persist_openai_conversation(
         self,
