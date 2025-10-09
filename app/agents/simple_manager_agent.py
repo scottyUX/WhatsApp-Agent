@@ -104,8 +104,26 @@ async def run_simple_manager_streaming(user_input: str, user_id: str, image_urls
         
         # Stream the events from the result
         async for event in result.stream_events():
-            # Extract text content from raw response events
-            if hasattr(event, 'type') and 'raw_response' in event.type:
+            # 1) Yield incremental deltas ASAP (varies by provider/version)
+            try:
+                if hasattr(event, 'type') and hasattr(event, 'data'):
+                    etype = str(getattr(event, 'type', '') or '')
+                    data = getattr(event, 'data', None)
+
+                    # Common delta fields
+                    if hasattr(data, 'delta') and isinstance(data.delta, str) and data.delta:
+                        yield data.delta
+                        continue
+                    if hasattr(data, 'text') and isinstance(data.text, str) and data.text and ('delta' in etype or 'stream' in etype):
+                        yield data.text
+                        continue
+
+            except Exception:
+                # Ignore delta extraction errors and fall back to raw_response parsing below
+                pass
+
+            # 2) Fallback: extract full text from raw response events (end of run)
+            if hasattr(event, 'type') and 'raw_response' in str(event.type):
                 if hasattr(event, 'data') and hasattr(event.data, 'response'):
                     response = event.data.response
                     if hasattr(response, 'output') and response.output:
