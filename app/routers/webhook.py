@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from app.models.message import TwilioWebhookData
 from app.config.rate_limits import limiter, RateLimitConfig
 from app.dependencies import MessageServiceDep
-from app.services.websocket_manager import manager
+from app.routers.sse_router import send_booking_confirmation
 from datetime import datetime
 import json
 
@@ -131,21 +131,13 @@ async def cal_webhook(request: Request, message_service: MessageServiceDep):
             
             print(f"📅 CAL.COM WEBHOOK: Generated booking data: {booking_data}")
             
-            # Try to send real-time notification to connected users
-            # For now, we'll try to send to a default user or all connected users
-            connected_users = manager.get_connected_users()
-            print(f"📅 CAL.COM WEBHOOK: Connected users: {connected_users}")
-            
-            if connected_users:
-                # Send to all connected users (you can modify this logic)
-                for user_id in connected_users:
-                    success = await manager.send_booking_confirmation(user_id, booking_data)
-                    if success:
-                        print(f"📅 CAL.COM WEBHOOK: Sent confirmation to user {user_id}")
-                    else:
-                        print(f"❌ CAL.COM WEBHOOK: Failed to send to user {user_id}")
-            else:
-                print("⚠️ CAL.COM WEBHOOK: No connected users to notify")
+                    # Add booking to polling system for real-time notifications
+                    from app.routers.booking_router import add_booking
+                    try:
+                        await add_booking(booking_data)
+                        print(f"📅 CAL.COM WEBHOOK: Added booking to polling system: {booking_data.get('booking_id')}")
+                    except Exception as e:
+                        print(f"❌ CAL.COM WEBHOOK: Failed to add booking to polling system: {e}")
             
             # Store the booking confirmation in database
             # You can add logic here to store booking details in your database

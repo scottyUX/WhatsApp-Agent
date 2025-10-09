@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 import uvicorn
 from app.config.settings import settings
-from app.routers import webhook, test, healthcheck, chat_router, whatsapp_router
+from app.routers import webhook, test, healthcheck, chat_router, whatsapp_router, sse_router, booking_router
 from app.config.rate_limits import limiter, custom_rate_limit_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -24,6 +24,8 @@ app.include_router(webhook.router)
 app.include_router(chat_router.router)
 app.include_router(whatsapp_router.router)
 app.include_router(healthcheck.router)
+app.include_router(sse_router.router)
+app.include_router(booking_router.router)
 
 # Only include test router in debug mode
 if settings.DEBUG:
