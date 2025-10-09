@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from app.models.message import TwilioWebhookData
 from app.config.rate_limits import limiter, RateLimitConfig
 from app.dependencies import MessageServiceDep
+from datetime import datetime
+import json
 
 
 router = APIRouter(
@@ -61,3 +63,69 @@ async def istanbulMedic_webhook(request: Request, message_service: MessageServic
             <Message>Sorry, an error occurred. Please try again. Error: {str(e)}</Message>
         </Response>
         """.strip(), media_type="text/xml")
+
+@router.post("/cal-webhook")
+@limiter.limit(RateLimitConfig.WEBHOOK)
+async def cal_webhook(request: Request, message_service: MessageServiceDep):
+    """Handle Cal.com webhook when user books an appointment."""
+    try:
+        # Get the webhook payload
+        payload = await request.json()
+        
+        print(f"📅 CAL.COM WEBHOOK: Received booking notification")
+        print(f"📅 CAL.COM WEBHOOK: Payload: {json.dumps(payload, indent=2)}")
+        
+        # Extract booking information
+        event_type = payload.get("type", "")
+        
+        if event_type == "BOOKING_CREATED":
+            # Extract booking details
+            booking = payload.get("data", {})
+            attendee = booking.get("attendees", [{}])[0] if booking.get("attendees") else {}
+            
+            # Get booking information
+            booking_id = booking.get("id", "Unknown")
+            event_title = booking.get("title", "Consultation")
+            start_time = booking.get("startTime", "")
+            end_time = booking.get("endTime", "")
+            attendee_name = attendee.get("name", "Guest")
+            attendee_email = attendee.get("email", "")
+            
+            # Format the confirmation message
+            confirmation_message = f"""
+🎉 **Booking Confirmed!**
+
+Thank you, {attendee_name}! Your consultation has been successfully scheduled.
+
+**Booking Details:**
+• **Event:** {event_title}
+• **Date & Time:** {start_time}
+• **Duration:** 15 minutes
+• **Booking ID:** {booking_id}
+
+We'll send you a calendar invite shortly. If you need to reschedule or have any questions, please don't hesitate to reach out.
+
+Looking forward to speaking with you!
+            """.strip()
+            
+            print(f"📅 CAL.COM WEBHOOK: Generated confirmation: {confirmation_message}")
+            
+            # Store the booking confirmation in database
+            # You can add logic here to store booking details in your database
+            
+            return {"status": "success", "message": "Booking confirmation processed"}
+        
+        elif event_type == "BOOKING_CANCELLED":
+            print(f"📅 CAL.COM WEBHOOK: Booking cancelled")
+            return {"status": "success", "message": "Booking cancellation processed"}
+        
+        else:
+            print(f"📅 CAL.COM WEBHOOK: Unknown event type: {event_type}")
+            return {"status": "success", "message": "Webhook received"}
+            
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"❌ Cal.com webhook error: {e}")
+        print(f"❌ Error details: {error_details}")
+        return {"status": "error", "message": str(e)}
