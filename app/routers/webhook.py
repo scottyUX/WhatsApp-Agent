@@ -132,9 +132,18 @@ async def cal_webhook(request: Request, message_service: MessageServiceDep):
             print(f"📅 CAL.COM WEBHOOK: Generated booking data: {booking_data}")
             
                     # Add booking to polling system for real-time notifications
-                    from app.routers.booking_router import add_booking
                     try:
-                        await add_booking(booking_data)
+                        # Add timestamp to the booking
+                        booking_data['timestamp'] = int(time.time() * 1000)
+                        
+                        # Import the recent_bookings list and add directly
+                        from app.routers.booking_router import recent_bookings
+                        recent_bookings.append(booking_data)
+                        
+                        # Keep only last 100 bookings to prevent memory issues
+                        if len(recent_bookings) > 100:
+                            recent_bookings.pop(0)
+                        
                         print(f"📅 CAL.COM WEBHOOK: Added booking to polling system: {booking_data.get('booking_id')}")
                     except Exception as e:
                         print(f"❌ CAL.COM WEBHOOK: Failed to add booking to polling system: {e}")
