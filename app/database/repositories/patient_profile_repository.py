@@ -53,3 +53,4 @@ class PatientProfileRepository:
     def get_by_user_id(self, user_id: Union[str, uuid.UUID]) -> Optional[PatientProfile]:
         if isinstance(user_id, str):
             user_id = uuid.UUID(user_id)
+        return self.db.query(PatientProfile).filter(PatientProfile.user_id == user_id).first()
