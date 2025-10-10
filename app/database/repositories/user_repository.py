@@ -10,7 +10,8 @@ class UserRepository:
         self.db = db
 
     def create(self, phone_number: str, name: Optional[str] = None, email: Optional[str] = None) -> User:
-        user = User(phone_number=phone_number, name=name, email=email)
+        # Note: User entity does not have an email column; persist name/phone only.
+        user = User(phone_number=phone_number, name=name)
         self.db.add(user)
         self.db.commit()
         self.db.refresh(user)

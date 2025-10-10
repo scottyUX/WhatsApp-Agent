@@ -185,9 +185,11 @@ class MedicalDataService:
                 age=age
             )
         
-        # Update profile with booking information and new schema fields
-        patient_profile.booking_uid = booking_uid
-        patient_profile.source_channel = "medical_questionnaire"
+        # Update profile with booking information
+        # Retrieval endpoint expects location formatted as 'booking_{uid}'
+        if booking_uid:
+            patient_profile.location = f"booking_{booking_uid}"
+        # Mark source via location tag; no dedicated column exists
         patient_profile.age = age or patient_profile.age
         
         # Ensure required fields are not empty
