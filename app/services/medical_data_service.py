@@ -33,7 +33,8 @@ class MedicalDataService:
     
     def submit_medical_questionnaire(
         self, 
-        request: MedicalQuestionnaireRequest
+        request: MedicalQuestionnaireRequest,
+        client_meta: Optional[Dict[str, Any]] = None
     ) -> MedicalQuestionnaireResponse:
         """
         Submit medical questionnaire data and create/update patient records.
@@ -82,7 +83,7 @@ class MedicalDataService:
             self._track_medical_questionnaire_submission(
                 booking_uid=booking_uid,
                 patient_profile_id=patient_profile.id,
-                submission_data=request.dict()
+                submission_data={**request.dict(), **({"client_meta": client_meta} if client_meta else {})}
             )
             
             return MedicalQuestionnaireResponse(

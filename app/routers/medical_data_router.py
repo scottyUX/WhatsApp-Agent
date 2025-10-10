@@ -8,7 +8,7 @@ This router provides endpoints for:
 - Health checks for medical data services
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import Dict, Any
 
@@ -27,7 +27,8 @@ router = APIRouter(prefix="/api/medical", tags=["medical-data"])
 @router.post("/questionnaire", response_model=MedicalQuestionnaireResponse)
 async def submit_medical_questionnaire(
     request: MedicalQuestionnaireRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    http_request: Request = None
 ):
     """
     Submit medical questionnaire data.
@@ -37,7 +38,16 @@ async def submit_medical_questionnaire(
     """
     try:
         medical_service = MedicalDataService(db)
-        response = medical_service.submit_medical_questionnaire(request)
+        client_ip = None
+        if http_request is not None and http_request.client:
+            client_ip = http_request.headers.get("x-forwarded-for") or http_request.client.host
+        client_meta = {
+            "ip": client_ip,
+            "user_agent": http_request.headers.get("user-agent") if http_request else None,
+            "referer": http_request.headers.get("referer") if http_request else None,
+            "x_forwarded_for": http_request.headers.get("x-forwarded-for") if http_request else None,
+        }
+        response = medical_service.submit_medical_questionnaire(request, client_meta=client_meta)
         
         if not response.success:
             raise HTTPException(
