@@ -135,9 +135,34 @@ Ensure your `vercel.json` is configured correctly:
 4. Update `DATABASE_URL` in environment variables
 
 ### 2. Database Schema
-The application will automatically create the required tables:
-- `users` - User information
-- `messages` - Message history
+Use the SQL migrations in `/migrations` to apply schema changes.
+
+### Phase 1 Release Runbook
+
+1. Pre-checks
+   - Confirm PostgreSQL version and access
+   - Take a full database backup/snapshot
+   - Ensure app code handles `payment_status` value `deposit`
+   - Verify no `bookings.payment_status='partial'` rows (migration remaps to `deposit`)
+
+2. Apply schema migration (inside transaction)
+   - Run: `migrations/002_phase1_release.sql`
+   - Changes: bookings defaults/constraints, remove `duration_hours`, add 'zoom' types, add lead enrichment fields
+
+3. Apply performance indexes (not in transaction)
+   - Run each statement in: `migrations/003_phase1_indexes.sql`
+   - Note: Uses `CREATE INDEX CONCURRENTLY`, safe online but slower
+
+4. Validate
+   - Create a test booking; verify `currency` default is `EUR`
+   - Create a test consultation with `consultation_type='zoom'`
+   - Add a `communication_channels` row with `channel_type='zoom'`
+   - Insert a lead with enrichment fields (e.g., `company`, `linkedin_url`)
+
+5. Rollback plan
+   - To revert schema: run `migrations/002_phase1_release_rollback.sql`
+   - To drop indexes: run `migrations/003_phase1_indexes_rollback.sql`
+   - Note: `bookings.duration_hours` is re-added nullable on rollback
 
 ### 3. Connection Pooling
 The application uses connection pooling for better performance:
