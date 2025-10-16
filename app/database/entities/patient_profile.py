@@ -13,6 +13,7 @@ if typing.TYPE_CHECKING:
     from .medical_background import MedicalBackground
     from .conversation_state import ConversationState
     from .consultation import Consultation
+    from .consultant_note import ConsultantNote
 
 
 class PatientProfile(Base, IdMixin):
@@ -46,6 +47,12 @@ class PatientProfile(Base, IdMixin):
     )
     consultations: Mapped[list["Consultation"]] = relationship(
         "Consultation",
+        back_populates="patient_profile",
+        default_factory=list,
+        init=False
+    )
+    consultant_notes: Mapped[list["ConsultantNote"]] = relationship(
+        "ConsultantNote",
         back_populates="patient_profile",
         default_factory=list,
         init=False

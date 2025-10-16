@@ -3,6 +3,7 @@ from .message import Message
 from .patient_profile import PatientProfile
 from .medical_background import MedicalBackground
 from .consultation import Consultation
+from .consultant_note import ConsultantNote
 from .conversation import Conversation
 from .conversation_state import ConversationState
 from .connection import Connection

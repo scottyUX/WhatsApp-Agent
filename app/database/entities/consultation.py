@@ -12,6 +12,7 @@ from .base import Base
 
 if typing.TYPE_CHECKING:
     from .patient_profile import PatientProfile
+    from .consultant_note import ConsultantNote
 
 
 class Consultation(Base, MappedAsDataclass):
@@ -59,6 +60,12 @@ class Consultation(Base, MappedAsDataclass):
     patient_profile: Mapped[Optional["PatientProfile"]] = relationship(
         "PatientProfile",
         back_populates="consultations"
+    )
+    consultant_notes: Mapped[list["ConsultantNote"]] = relationship(
+        "ConsultantNote",
+        back_populates="consultation",
+        default_factory=list,
+        init=False
     )
 
     def __repr__(self):
