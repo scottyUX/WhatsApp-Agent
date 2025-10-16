@@ -51,9 +51,9 @@ class ConsultantNoteRepository:
         return note
 
     def get_by_id(self, note_id: Union[str, uuid.UUID]) -> Optional[ConsultantNote]:
-        if isinstance(note_id, str):
-            note_id = uuid.UUID(note_id)
-        return self.db.query(ConsultantNote).filter(ConsultantNote.id == note_id).first()
+        # Convert to string since the database id column is VARCHAR
+        note_id_str = str(note_id)
+        return self.db.query(ConsultantNote).filter(ConsultantNote.id == note_id_str).first()
 
     def get_by_patient_profile_id(
         self, 
@@ -77,11 +77,11 @@ class ConsultantNoteRepository:
         consultation_id: Union[str, uuid.UUID],
         include_private: bool = False
     ) -> List[ConsultantNote]:
-        if isinstance(consultation_id, str):
-            consultation_id = uuid.UUID(consultation_id)
+        # Convert to string since the database id column is VARCHAR
+        consultation_id_str = str(consultation_id)
         
         query = self.db.query(ConsultantNote).filter(
-            ConsultantNote.consultation_id == consultation_id
+            ConsultantNote.consultation_id == consultation_id_str
         )
         
         if not include_private:

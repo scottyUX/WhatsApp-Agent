@@ -41,15 +41,11 @@ class PatientProfile(Base, IdMixin):
     )
     conversation_states: Mapped[list["ConversationState"]] = relationship(
         "ConversationState",
-        back_populates="patient_profile",
-        default_factory=list,
-        init=False
+        back_populates="patient_profile"
     )
     consultations: Mapped[list["Consultation"]] = relationship(
         "Consultation",
-        back_populates="patient_profile",
-        default_factory=list,
-        init=False
+        back_populates="patient_profile"
     )
     consultant_notes: Mapped[list["ConsultantNote"]] = relationship(
         "ConsultantNote",
