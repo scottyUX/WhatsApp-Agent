@@ -63,9 +63,7 @@ class Consultation(Base, MappedAsDataclass):
     )
     consultant_notes: Mapped[list["ConsultantNote"]] = relationship(
         "ConsultantNote",
-        back_populates="consultation",
-        default_factory=list,
-        init=False
+        back_populates="consultation"
     )
 
     def __repr__(self):
