@@ -12,6 +12,7 @@ from .mixins import IdMixin
 if typing.TYPE_CHECKING:
     from .medical_background import MedicalBackground
     from .conversation_state import ConversationState
+    from .consultation import Consultation
 
 
 class PatientProfile(Base, IdMixin):
@@ -39,6 +40,12 @@ class PatientProfile(Base, IdMixin):
     )
     conversation_states: Mapped[list["ConversationState"]] = relationship(
         "ConversationState",
+        back_populates="patient_profile",
+        default_factory=list,
+        init=False
+    )
+    consultations: Mapped[list["Consultation"]] = relationship(
+        "Consultation",
         back_populates="patient_profile",
         default_factory=list,
         init=False

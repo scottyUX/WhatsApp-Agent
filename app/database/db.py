@@ -10,10 +10,10 @@ DATABASE_URL = settings.DATABASE_URL
 # Create engine with connection pooling
 engine = create_engine(
     DATABASE_URL,
-    poolclass=StaticPool,
     pool_pre_ping=True,
     pool_recycle=300,
-    echo=False
+    echo=False,
+    connect_args={"options": "-c timezone=utc"}
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

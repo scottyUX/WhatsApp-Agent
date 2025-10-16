@@ -1,7 +1,10 @@
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response, Depends
+from sqlalchemy.orm import Session
 from app.models.message import TwilioWebhookData
 from app.config.rate_limits import limiter, RateLimitConfig
 from app.dependencies import MessageServiceDep
+from app.services.consultation_service import ConsultationService
+from app.database.db import SessionLocal
 from datetime import datetime
 import json
 
@@ -64,9 +67,18 @@ async def istanbulMedic_webhook(request: Request, message_service: MessageServic
         </Response>
         """.strip(), media_type="text/xml")
 
+def get_db():
+    """Dependency to get database session."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 @router.post("/cal-webhook")
 @limiter.limit(RateLimitConfig.WEBHOOK)
-async def cal_webhook(request: Request, message_service: MessageServiceDep):
+async def cal_webhook(request: Request, message_service: MessageServiceDep, db: Session = Depends(get_db)):
     """Handle Cal.com webhook when user books an appointment."""
     try:
         # Get the webhook payload
@@ -75,21 +87,21 @@ async def cal_webhook(request: Request, message_service: MessageServiceDep):
         print(f"📅 CAL.COM WEBHOOK: Received booking notification")
         print(f"📅 CAL.COM WEBHOOK: Payload: {json.dumps(payload, indent=2)}")
         
-        # Extract booking information
-        event_type = payload.get("type", "")
+        # Process webhook using consultation service
+        consultation_service = ConsultationService(db)
+        result = consultation_service.process_cal_webhook(payload)
         
-        if event_type == "BOOKING_CREATED":
-            # Extract booking details
-            booking = payload.get("data", {})
-            attendee = booking.get("attendees", [{}])[0] if booking.get("attendees") else {}
+        print(f"📅 CAL.COM WEBHOOK: Processing result: {result}")
+        
+        # Generate confirmation message for BOOKING_CREATED events
+        if result.get("action") == "created":
+            booking_data = payload.get("data", {})
+            attendee = booking_data.get("attendees", [{}])[0] if booking_data.get("attendees") else {}
             
-            # Get booking information
-            booking_id = booking.get("id", "Unknown")
-            event_title = booking.get("title", "Consultation")
-            start_time = booking.get("startTime", "")
-            end_time = booking.get("endTime", "")
+            booking_id = booking_data.get("id", "Unknown")
+            event_title = booking_data.get("title", "Consultation")
+            start_time = booking_data.get("startTime", "")
             attendee_name = attendee.get("name", "Guest")
-            attendee_email = attendee.get("email", "")
             
             # Format the confirmation message
             confirmation_message = f"""
@@ -109,19 +121,12 @@ Looking forward to speaking with you!
             """.strip()
             
             print(f"📅 CAL.COM WEBHOOK: Generated confirmation: {confirmation_message}")
-            
-            # Store the booking confirmation in database
-            # You can add logic here to store booking details in your database
-            
-            return {"status": "success", "message": "Booking confirmation processed"}
         
-        elif event_type == "BOOKING_CANCELLED":
-            print(f"📅 CAL.COM WEBHOOK: Booking cancelled")
-            return {"status": "success", "message": "Booking cancellation processed"}
-        
-        else:
-            print(f"📅 CAL.COM WEBHOOK: Unknown event type: {event_type}")
-            return {"status": "success", "message": "Webhook received"}
+        return {
+            "status": "success", 
+            "message": "Webhook processed successfully",
+            "result": result
+        }
             
     except Exception as e:
         import traceback
