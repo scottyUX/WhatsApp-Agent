@@ -29,6 +29,7 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:3003",
         "http://127.0.0.1:3003",
+        "https://istanbulmedic-website.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
