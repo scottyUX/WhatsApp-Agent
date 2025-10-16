@@ -53,9 +53,7 @@ class PatientProfile(Base, IdMixin):
     )
     consultant_notes: Mapped[list["ConsultantNote"]] = relationship(
         "ConsultantNote",
-        back_populates="patient_profile",
-        default_factory=list,
-        init=False
+        back_populates="patient_profile"
     )
 
     # Constraints
