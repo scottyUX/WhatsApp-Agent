@@ -5,8 +5,10 @@ API endpoints for patient data management.
 """
 
 import traceback
+from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Request, Depends
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from app.database.db import SessionLocal
 from app.database.repositories.patient_profile_repository import PatientProfileRepository
@@ -247,6 +249,188 @@ async def get_patient_medical_data(
                 "created_at": medical_background.created_at.isoformat(),
                 "updated_at": medical_background.updated_at.isoformat()
             }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as exception:
+        traceback.print_exc()
+        raise ErrorUtils.toHTTPException(exception)
+
+
+# Pydantic models for patient updates
+class MedicalSummaryUpdate(BaseModel):
+    medications: str
+    medicationsDetails: str
+    allergies: str
+    allergiesDetails: str
+    medicalConditions: str
+    medicalConditionsDetails: str
+    previousSurgeries: str
+    previousSurgeriesDetails: str
+
+class HairLossProfileUpdate(BaseModel):
+    duration: str
+    pattern: List[str]
+    familyHistory: List[str]
+    previousTreatments: List[str]
+
+class PatientProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    ageRange: Optional[str] = None  # Will be converted to age integer
+    journeyStage: Optional[str] = None
+    medicalSummary: Optional[MedicalSummaryUpdate] = None
+    hairLossProfile: Optional[HairLossProfileUpdate] = None
+
+
+@router.put("/{patient_id}")
+@limiter.limit(RateLimitConfig.CHAT)
+async def update_patient_profile(
+    request: Request,
+    patient_id: str,
+    update_data: PatientProfileUpdate,
+    db: Session = Depends(get_db)
+):
+    """
+    Update patient profile information.
+    
+    Args:
+        patient_id: The patient profile ID
+        update_data: Updated patient data
+        
+    Returns:
+        Updated patient profile data
+    """
+    try:
+        patient_repository = PatientProfileRepository(db)
+        medical_repository = MedicalBackgroundRepository(db)
+        
+        # Get existing patient
+        patient = patient_repository.get_by_id(patient_id)
+        if not patient:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Patient not found: {patient_id}"
+            )
+        
+        # Update basic patient profile fields
+        if update_data.name is not None:
+            patient.name = update_data.name
+        if update_data.email is not None:
+            patient.email = update_data.email
+        if update_data.phone is not None:
+            patient.phone = update_data.phone
+        if update_data.ageRange is not None:
+            # Convert age range to age (take the lower bound)
+            try:
+                age_str = update_data.ageRange.split('-')[0]
+                patient.age = int(age_str)
+            except (ValueError, IndexError):
+                # If parsing fails, keep existing age
+                pass
+        
+        # Save patient profile changes
+        patient_repository.save(patient)
+        
+        # Update medical background if provided
+        if update_data.medicalSummary or update_data.hairLossProfile:
+            # Get or create medical background
+            medical_background = medical_repository.get_by_patient_profile_id(patient_id)
+            if not medical_background:
+                medical_background = medical_repository.create(
+                    patient_profile_id=patient_id,
+                    medical_data={}
+                )
+            
+            # Update medical data
+            medical_data = medical_background.medical_data or {}
+            
+            if update_data.medicalSummary:
+                medical_data.update({
+                    "current_medications": update_data.medicalSummary.medications,
+                    "current_medications_details": update_data.medicalSummary.medicationsDetails,
+                    "allergies": update_data.medicalSummary.allergies,
+                    "allergies_details": update_data.medicalSummary.allergiesDetails,
+                    "medical_conditions": update_data.medicalSummary.medicalConditions,
+                    "medical_conditions_details": update_data.medicalSummary.medicalConditionsDetails,
+                    "previous_surgeries": update_data.medicalSummary.previousSurgeries,
+                    "previous_surgeries_details": update_data.medicalSummary.previousSurgeriesDetails
+                })
+            
+            if update_data.hairLossProfile:
+                medical_data.update({
+                    "hair_loss_duration": update_data.hairLossProfile.duration,
+                    "hair_loss_pattern": update_data.hairLossProfile.pattern,
+                    "family_history": update_data.hairLossProfile.familyHistory,
+                    "previous_treatments": update_data.hairLossProfile.previousTreatments
+                })
+            
+            medical_background.medical_data = medical_data
+            medical_repository.save(medical_background)
+        
+        # Get updated patient data to return
+        updated_patient = patient_repository.get_by_id(patient_id)
+        updated_medical = medical_repository.get_by_patient_profile_id(patient_id)
+        
+        # Format response similar to get_patient_details
+        medical_summary = {
+            "medications": "none",
+            "medicationsDetails": "",
+            "allergies": "none", 
+            "allergiesDetails": "",
+            "medicalConditions": "none",
+            "medicalConditionsDetails": "",
+            "previousSurgeries": "none",
+            "previousSurgeriesDetails": ""
+        }
+        
+        if updated_medical and updated_medical.medical_data:
+            medical_data = updated_medical.medical_data
+            medical_summary = {
+                "medications": medical_data.get("current_medications", "none"),
+                "medicationsDetails": medical_data.get("current_medications_details", ""),
+                "allergies": medical_data.get("allergies", "none"),
+                "allergiesDetails": medical_data.get("allergies_details", ""),
+                "medicalConditions": medical_data.get("medical_conditions", "none"),
+                "medicalConditionsDetails": medical_data.get("medical_conditions_details", ""),
+                "previousSurgeries": medical_data.get("previous_surgeries", "none"),
+                "previousSurgeriesDetails": medical_data.get("previous_surgeries_details", "")
+            }
+        
+        hair_loss_profile = {
+            "duration": "",
+            "pattern": [],
+            "familyHistory": [],
+            "previousTreatments": []
+        }
+        
+        if updated_medical and updated_medical.medical_data:
+            medical_data = updated_medical.medical_data
+            hair_loss_profile = {
+                "duration": medical_data.get("hair_loss_duration", ""),
+                "pattern": medical_data.get("hair_loss_pattern", []),
+                "familyHistory": medical_data.get("family_history", []),
+                "previousTreatments": medical_data.get("previous_treatments", [])
+            }
+        
+        result = {
+            "id": str(updated_patient.id),
+            "name": updated_patient.name,
+            "email": updated_patient.email,
+            "phone": updated_patient.phone,
+            "ageRange": f"{updated_patient.age}-{updated_patient.age+10}" if updated_patient.age else None,
+            "medicalSummary": medical_summary,
+            "hairLossProfile": hair_loss_profile,
+            "journeyStage": update_data.journeyStage or "discovery",
+            "lastUpdated": updated_patient.updated_at.isoformat()
+        }
+        
+        return {
+            "success": True,
+            "data": result,
+            "message": "Patient profile updated successfully"
         }
         
     except HTTPException:
