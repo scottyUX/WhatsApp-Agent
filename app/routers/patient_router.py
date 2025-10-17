@@ -348,24 +348,34 @@ async def update_patient_profile(
             medical_data = medical_background.medical_data or {}
             
             if update_data.medicalSummary:
-                medical_data.update({
-                    "current_medications": update_data.medicalSummary.medications,
-                    "current_medications_details": update_data.medicalSummary.medicationsDetails,
-                    "allergies": update_data.medicalSummary.allergies,
-                    "allergies_details": update_data.medicalSummary.allergiesDetails,
-                    "medical_conditions": update_data.medicalSummary.medicalConditions,
-                    "medical_conditions_details": update_data.medicalSummary.medicalConditionsDetails,
-                    "previous_surgeries": update_data.medicalSummary.previousSurgeries,
-                    "previous_surgeries_details": update_data.medicalSummary.previousSurgeriesDetails
-                })
+                # Only update fields that are provided (not None)
+                if update_data.medicalSummary.medications is not None:
+                    medical_data["current_medications"] = update_data.medicalSummary.medications
+                if update_data.medicalSummary.medicationsDetails is not None:
+                    medical_data["current_medications_details"] = update_data.medicalSummary.medicationsDetails
+                if update_data.medicalSummary.allergies is not None:
+                    medical_data["allergies"] = update_data.medicalSummary.allergies
+                if update_data.medicalSummary.allergiesDetails is not None:
+                    medical_data["allergies_details"] = update_data.medicalSummary.allergiesDetails
+                if update_data.medicalSummary.medicalConditions is not None:
+                    medical_data["medical_conditions"] = update_data.medicalSummary.medicalConditions
+                if update_data.medicalSummary.medicalConditionsDetails is not None:
+                    medical_data["medical_conditions_details"] = update_data.medicalSummary.medicalConditionsDetails
+                if update_data.medicalSummary.previousSurgeries is not None:
+                    medical_data["previous_surgeries"] = update_data.medicalSummary.previousSurgeries
+                if update_data.medicalSummary.previousSurgeriesDetails is not None:
+                    medical_data["previous_surgeries_details"] = update_data.medicalSummary.previousSurgeriesDetails
             
             if update_data.hairLossProfile:
-                medical_data.update({
-                    "hair_loss_duration": update_data.hairLossProfile.duration,
-                    "hair_loss_pattern": update_data.hairLossProfile.pattern,
-                    "family_history": update_data.hairLossProfile.familyHistory,
-                    "previous_treatments": update_data.hairLossProfile.previousTreatments
-                })
+                # Only update fields that are provided (not None)
+                if update_data.hairLossProfile.duration is not None:
+                    medical_data["hair_loss_duration"] = update_data.hairLossProfile.duration
+                if update_data.hairLossProfile.pattern is not None:
+                    medical_data["hair_loss_pattern"] = update_data.hairLossProfile.pattern
+                if update_data.hairLossProfile.familyHistory is not None:
+                    medical_data["family_history"] = update_data.hairLossProfile.familyHistory
+                if update_data.hairLossProfile.previousTreatments is not None:
+                    medical_data["previous_treatments"] = update_data.hairLossProfile.previousTreatments
             
             medical_background.medical_data = medical_data
             medical_repository.save(medical_background)
