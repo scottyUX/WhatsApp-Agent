@@ -294,3 +294,4 @@ async def health_check(request: Request):
         "service": "consultant_notes",
         "message": "Consultant notes service is running"
     }
+

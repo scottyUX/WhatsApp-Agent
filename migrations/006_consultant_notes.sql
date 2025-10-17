@@ -28,3 +28,4 @@ COMMENT ON COLUMN consultant_notes.note_content IS 'The actual note content';
 COMMENT ON COLUMN consultant_notes.consultation_id IS 'Optional reference to a specific consultation';
 COMMENT ON COLUMN consultant_notes.note_type IS 'Type of note (general, consultation, follow_up, medical, administrative)';
 COMMENT ON COLUMN consultant_notes.is_private IS 'Whether the note is private to the consultant';
+

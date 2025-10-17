@@ -53,3 +53,4 @@ class ConsultantNote(Base, MappedAsDataclass):
 
     def __repr__(self):
         return f"<ConsultantNote {self.id} - {self.note_content[:50]}...>"
+

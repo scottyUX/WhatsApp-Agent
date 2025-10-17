@@ -9,3 +9,4 @@ DROP INDEX IF EXISTS idx_consultant_notes_patient_profile_id;
 
 -- Drop the table
 DROP TABLE IF EXISTS consultant_notes;
+
