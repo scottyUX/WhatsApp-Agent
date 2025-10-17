@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 
 class Consultation(Base, MappedAsDataclass):
-    __tablename__ = "Appoinment"
+    __tablename__ = "Appointment"
 
     # Primary key and timestamps
     id: Mapped[str] = mapped_column(primary_key=True)
@@ -59,11 +59,13 @@ class Consultation(Base, MappedAsDataclass):
     # Relationships
     patient_profile: Mapped[Optional["PatientProfile"]] = relationship(
         "PatientProfile",
-        back_populates="consultations"
+        back_populates="consultations",
+        init=False
     )
     consultant_notes: Mapped[list["ConsultantNote"]] = relationship(
         "ConsultantNote",
-        back_populates="consultation"
+        back_populates="consultation",
+        init=False
     )
 
     def __repr__(self):
