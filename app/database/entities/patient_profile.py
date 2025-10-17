@@ -33,12 +33,6 @@ class PatientProfile(Base, IdMixin):
     gender: Mapped[Optional[Gender]] = mapped_column(nullable=True)
 
     # Relationships
-    medical_background: Mapped[Optional["MedicalBackground"]] = relationship(
-        "MedicalBackground",
-        back_populates="patient_profile",
-        uselist=False,
-        init=False
-    )
     conversation_states: Mapped[list["ConversationState"]] = relationship(
         "ConversationState",
         back_populates="patient_profile"
@@ -50,6 +44,12 @@ class PatientProfile(Base, IdMixin):
     consultant_notes: Mapped[list["ConsultantNote"]] = relationship(
         "ConsultantNote",
         back_populates="patient_profile"
+    )
+    medical_background: Mapped[Optional["MedicalBackground"]] = relationship(
+        "MedicalBackground",
+        back_populates="patient_profile",
+        uselist=False,
+        init=False
     )
 
     # Constraints
