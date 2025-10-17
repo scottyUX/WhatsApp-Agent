@@ -3,6 +3,7 @@ from typing import Optional, Union, List
 from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+from sqlalchemy.exc import ProgrammingError, OperationalError
 
 from app.database.entities import Consultation
 
@@ -98,19 +99,34 @@ class ConsultationRepository:
         start_of_day = datetime.combine(today, datetime.min.time())
         end_of_day = datetime.combine(today, datetime.max.time())
         
-        return self.db.query(Consultation).filter(
-            and_(
-                Consultation.start_time >= start_of_day,
-                Consultation.start_time <= end_of_day
-            )
-        ).order_by(Consultation.start_time).all()
+        try:
+            return self.db.query(Consultation).filter(
+                and_(
+                    Consultation.start_time >= start_of_day,
+                    Consultation.start_time <= end_of_day
+                )
+            ).order_by(Consultation.start_time).all()
+        except (ProgrammingError, OperationalError) as exc:
+            message = str(exc).lower()
+            if "appoinment" in message or "appointment" in message:
+                # Table not present (e.g. Cal.com sync disabled); treat as no consultations
+                self.db.rollback()
+                return []
+            raise
 
     def get_upcoming_consultations(self, limit: int = 10) -> List[Consultation]:
         """Get upcoming consultations."""
         now = datetime.now()
-        return self.db.query(Consultation).filter(
-            Consultation.start_time > now
-        ).order_by(Consultation.start_time).limit(limit).all()
+        try:
+            return self.db.query(Consultation).filter(
+                Consultation.start_time > now
+            ).order_by(Consultation.start_time).limit(limit).all()
+        except (ProgrammingError, OperationalError) as exc:
+            message = str(exc).lower()
+            if "appoinment" in message or "appointment" in message:
+                self.db.rollback()
+                return []
+            raise
 
     def update_status(self, cal_booking_id: str, status: str) -> Optional[Consultation]:
         """Update consultation status."""

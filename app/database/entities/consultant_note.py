@@ -34,7 +34,7 @@ class ConsultantNote(Base, MappedAsDataclass):
     # Optional fields
     consultation_id: Mapped[Optional[str]] = mapped_column(
         "consultation_id",
-        ForeignKey("Appoinment.id"),
+        ForeignKey("appointment.id"),
         nullable=True,
         default=None
     )

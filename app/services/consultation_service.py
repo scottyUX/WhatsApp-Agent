@@ -205,28 +205,33 @@ class ConsultationService:
     
     def get_todays_consultations(self) -> List[Dict[str, Any]]:
         """Get today's consultations formatted for consultant interface."""
-        consultations = self.consultation_repository.get_todays_consultations()
-        
-        result = []
-        for consultation in consultations:
-            result.append({
-                "id": str(consultation.id),
-                "zoom_meeting_id": consultation.zoom_meeting_id,
-                "topic": consultation.topic,
-                "agenda": consultation.agenda,
-                "start_time": consultation.start_time.isoformat() if consultation.start_time else None,
-                "duration": consultation.duration,
-                "timezone": consultation.timezone,
-                "attendee_name": consultation.attendee_name,
-                "attendee_email": consultation.attendee_email,
-                "attendee_phone": consultation.attendee_phone,
-                "status": consultation.status,
-                "host_name": consultation.host_name,
-                "host_email": consultation.host_email,
-                "patient_profile_id": str(consultation.patient_profile_id) if consultation.patient_profile_id else None
-            })
-        
-        return result
+        try:
+            consultations = self.consultation_repository.get_todays_consultations()
+            
+            result = []
+            for consultation in consultations:
+                result.append({
+                    "id": str(consultation.id),
+                    "zoom_meeting_id": consultation.zoom_meeting_id,
+                    "topic": consultation.topic,
+                    "agenda": consultation.agenda,
+                    "start_time": consultation.start_time.isoformat() if consultation.start_time else None,
+                    "duration": consultation.duration,
+                    "timezone": consultation.timezone,
+                    "attendee_name": consultation.attendee_name,
+                    "attendee_email": consultation.attendee_email,
+                    "attendee_phone": consultation.attendee_phone,
+                    "status": consultation.status,
+                    "host_name": consultation.host_name,
+                    "host_email": consultation.host_email,
+                    "patient_profile_id": str(consultation.patient_profile_id) if consultation.patient_profile_id else None
+                })
+            
+            return result
+        except Exception as e:
+            # If the consultations table doesn't exist, return empty list
+            print(f"Warning: Could not fetch consultations: {e}")
+            return []
     
     def get_consultation_by_cal_id(self, cal_booking_id: str) -> Optional[Dict[str, Any]]:
         """Get consultation by Cal.com booking ID."""

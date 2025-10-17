@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 
 class Consultation(Base):
-    __tablename__ = "Appoinment"  # Matches existing Cal.com table spelling
+    __tablename__ = "appointment"
 
     # Primary key and timestamps
     id: Mapped[str] = mapped_column(primary_key=True)
