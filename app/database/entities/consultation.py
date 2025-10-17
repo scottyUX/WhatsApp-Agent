@@ -15,7 +15,7 @@ if typing.TYPE_CHECKING:
     from .consultant_note import ConsultantNote
 
 
-class Consultation(Base, MappedAsDataclass):
+class Consultation(Base):
     __tablename__ = "Appoinment"  # Matches existing Cal.com table spelling
 
     # Primary key and timestamps
@@ -59,13 +59,11 @@ class Consultation(Base, MappedAsDataclass):
     # Relationships
     patient_profile: Mapped[Optional["PatientProfile"]] = relationship(
         "PatientProfile",
-        back_populates="consultations",
-        init=False
+        back_populates="consultations"
     )
     consultant_notes: Mapped[list["ConsultantNote"]] = relationship(
         "ConsultantNote",
-        back_populates="consultation",
-        init=False
+        back_populates="consultation"
     )
 
     def __repr__(self):

@@ -17,4 +17,4 @@ class IdMixin(MappedAsDataclass):
     updated_at: Mapped[datetime.datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now(), init=False
     )
-    deleted: Mapped[bool] = mapped_column(init=False)
+    deleted: Mapped[bool] = mapped_column(default=False, init=False)
