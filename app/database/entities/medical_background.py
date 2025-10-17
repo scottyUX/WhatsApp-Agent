@@ -3,6 +3,7 @@ import uuid
 
 from sqlalchemy import ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -30,7 +31,11 @@ class MedicalBackground(Base, IdMixin):
     # - hair_loss_start: Optional[str]
     # - family_history: Optional[bool]
     # - previous_treatments: List[str]
-    medical_data: Mapped[dict] = mapped_column(JSONB, default_factory=dict)
+    # Use MutableDict so in-place updates mark the column as dirty
+    medical_data: Mapped[dict] = mapped_column(
+        MutableDict.as_mutable(JSONB),
+        default_factory=dict
+    )
 
     # Relationships
     patient_profile: Mapped["PatientProfile"] = relationship(
