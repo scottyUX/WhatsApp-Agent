@@ -14,6 +14,7 @@ slowapi
 sqlalchemy
 psycopg2-binary>=2.9.0
 psycopg[binary,pool]==3.2.11
+supabase>=2.4.0
 google-api-python-client==2.182.0
 google-auth>=2.0.0
 google-auth-oauthlib>=1.0.0

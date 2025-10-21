@@ -14,6 +14,7 @@ if typing.TYPE_CHECKING:
     from .conversation_state import ConversationState
     from .consultation import Consultation
     from .consultant_note import ConsultantNote
+    from .patient_image_submission import PatientImageSubmission
 
 
 class PatientProfile(Base, IdMixin):
@@ -49,6 +50,11 @@ class PatientProfile(Base, IdMixin):
         "MedicalBackground",
         back_populates="patient_profile",
         uselist=False,
+        init=False
+    )
+    image_submissions: Mapped[list["PatientImageSubmission"]] = relationship(
+        "PatientImageSubmission",
+        back_populates="patient_profile",
         init=False
     )
 
