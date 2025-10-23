@@ -20,6 +20,7 @@ from app.models.clinic import (
     ClinicListResponse,
     ClinicPackageUpdateRequest,
     ClinicResponse,
+    ClinicUpdateRequest,
     PackageResponse,
 )
 from app.utils import ErrorUtils
@@ -195,6 +196,71 @@ async def update_clinic_packages(
             packages,
             has_contract=payload.has_contract,
         )
+        return _serialize_clinic(clinic)
+    except HTTPException:
+        raise
+    except Exception as exception:  # pragma: no cover - defensive logging
+        traceback.print_exc()
+        raise ErrorUtils.toHTTPException(exception)
+
+
+@router.patch("/{clinic_id}", response_model=ClinicResponse)
+@limiter.limit(RateLimitConfig.DEFAULT)
+async def update_clinic(
+    request: Request,
+    clinic_id: str,
+    payload: ClinicUpdateRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Partially update editable clinic fields such as contact details or metadata.
+    """
+    try:
+        clinic_uuid = uuid.UUID(clinic_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Clinic ID must be a valid UUID.",
+        ) from exc
+
+    try:
+        clinic_repo = ClinicRepository(db)
+        clinic = clinic_repo.get_by_id(clinic_uuid)
+        if clinic is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Clinic not found: {clinic_id}",
+            )
+
+        update_data = payload.model_dump(exclude_unset=True, by_alias=False)
+        allowed_fields = {
+            "title",
+            "location",
+            "city",
+            "state",
+            "country",
+            "country_code",
+            "phone",
+            "email",
+            "website",
+            "image_url",
+            "additional_info",
+            "opening_hours",
+            "price_range",
+            "availability",
+            "rating",
+            "reviews_count",
+            "categories",
+            "has_contract",
+        }
+        filtered_data = {k: v for k, v in update_data.items() if k in allowed_fields}
+        if not filtered_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No valid fields supplied for update.",
+            )
+
+        clinic = clinic_repo.update_fields(clinic, filtered_data)
         return _serialize_clinic(clinic)
     except HTTPException:
         raise

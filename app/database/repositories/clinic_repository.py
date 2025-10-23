@@ -78,3 +78,15 @@ class ClinicRepository:
         self.db.commit()
         self.db.refresh(clinic)
         return clinic
+
+    def update_fields(
+        self,
+        clinic: Clinic,
+        data: dict,
+    ) -> Clinic:
+        for key, value in data.items():
+            setattr(clinic, key, value)
+        self.db.add(clinic)
+        self.db.commit()
+        self.db.refresh(clinic)
+        return clinic

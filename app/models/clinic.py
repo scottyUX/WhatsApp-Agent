@@ -144,6 +144,30 @@ class ClinicPackageUpdateRequest(BaseModel):
         populate_by_name = True
 
 
+class ClinicUpdateRequest(BaseModel):
+    title: Optional[str] = Field(default=None, max_length=255)
+    location: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    country_code: Optional[str] = Field(default=None, alias="countryCode", max_length=10)
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    image_url: Optional[str] = Field(default=None, alias="imageUrl")
+    additional_info: Optional[Dict[str, Any]] = Field(default=None, alias="additionalInfo")
+    opening_hours: Optional[Dict[str, Any]] = Field(default=None, alias="openingHours")
+    price_range: Optional[str] = Field(default=None, alias="priceRange")
+    availability: Optional[str] = None
+    rating: Optional[float] = Field(default=None, ge=0, le=5)
+    reviews_count: Optional[int] = Field(default=None, alias="reviewsCount", ge=0)
+    categories: Optional[List[str]] = None
+    has_contract: Optional[bool] = Field(default=None, alias="hasContract")
+
+    class Config:
+        populate_by_name = True
+
+
 PackageResponse.model_rebuild()
 PackageCreateRequest.model_rebuild()
 PackageUpdateRequest.model_rebuild()
@@ -151,3 +175,4 @@ PackageListResponse.model_rebuild()
 ClinicResponse.model_rebuild()
 ClinicListResponse.model_rebuild()
 ClinicPackageUpdateRequest.model_rebuild()
+ClinicUpdateRequest.model_rebuild()
