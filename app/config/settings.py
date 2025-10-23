@@ -28,6 +28,13 @@ class Settings:
     # Google Calendar
     GOOGLE_CALENDAR_ID: str = os.getenv("GOOGLE_CALENDAR_ID", "primary")
     
+    # Supabase
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL")
+    SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY")
+    SUPABASE_IMAGE_BUCKET: str = os.getenv(
+        "SUPABASE_IMAGE_BUCKET", "istanbulmedic_patient_images"
+    )
+    
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     

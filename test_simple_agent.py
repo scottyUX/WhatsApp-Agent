@@ -7,10 +7,14 @@ import asyncio
 import sys
 import os
 
+import pytest
+
 # Add the app directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
 
 from app.agents.simple_manager_agent import run_simple_manager
+
+pytestmark = pytest.mark.skip(reason="Integration script for manual execution; skipped in automated test suite.")
 
 async def test_simple_agent():
     """Test the simplified agent with basic questions"""

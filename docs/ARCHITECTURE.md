@@ -38,6 +38,12 @@ The WhatsApp Medical Agent system uses a simplified multi-agent architecture wit
 │ Scheduling   │ │ Image  │ │ Knowledge   │
 │ Agent (Anna) │ │ Agent  │ │ Agent       │
 └──────────────┘ └────────┘ └─────────────┘
+        │
+        │
+┌───────▼────────────┐
+│ Image Analysis API │
+│ (multi-image GPT)  │
+└────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
 │                    Chat Users                               │
@@ -93,15 +99,19 @@ The WhatsApp Medical Agent system uses a simplified multi-agent architecture wit
 - Patient questionnaire system
 - Google Calendar integration
 
-### 3. Image Agent
-**File**: `app/agents/specialized_agents/image_agent.py`
+### 3. Image Agent & Analysis Service
+**Files**: 
+- `app/agents/specialized_agents/image_agent.py`
+- `app/routers/image_analysis_router.py`
+- `app/services/report_generation_service.py`
 
-**Purpose**: Analyzes images for hair transplant consultations.
+**Purpose**: Downloads Supabase-hosted photos, calls the enhanced GPT agent, and produces structured reports (JSON + optional PDF).
 
 **Key Features**:
-- Hair graft assessment
-- Medical image analysis
-- Professional consultation support
+- Multi-image analysis with Norwood staging, graft estimates, donor assessment
+- Supabase storage integration for signed/public URLs
+- Optional PDF and HTML report generation
+- Health endpoint for observability
 
 ### 4. Knowledge Agent
 **File**: `app/agents/language_agents/english_agent.py`
@@ -182,10 +192,102 @@ Specialized Agent → Manager Agent → Message Service → Twilio → WhatsApp
 - `reschedule_event_by_title` - Reschedule by name
 - `delete_event_by_title` - Cancel by name
 
+## Media & Storage Services
+
+### Patient Image Service
+**Files**: 
+- `app/services/patient_image_service.py`
+- `app/services/supabase_storage_service.py`
+- `app/routers/patient_image_router.py`
+
+**Responsibilities**:
+- Enforce 3–6 image upload rule per submission
+- Validate patient existence before storing photos
+- Upload files to Supabase buckets (public or signed URLs)
+- Return normalized URLs to the frontend
+
+**Workflow**:
+```
+Frontend Upload → /api/patient-images → Supabase Storage → DB patient_image_submissions
+```
+
+### Supabase Storage Configuration
+- Environment variables: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_IMAGE_BUCKET`
+- Optional flags: `SUPABASE_BUCKET_IS_PUBLIC`, `SUPABASE_SIGNED_URL_TTL`
+- Uses Supabase Python v2 client with `ClientOptions` to set auth headers
+
+## Clinic & Package Management
+
+### REST Layer
+**Files**:
+- `app/routers/clinic_router.py`
+- `app/routers/package_router.py`
+- `app/routers/patient_router.py` (offers endpoint)
+
+**Capabilities**:
+- Paginated clinic listing with contract filter
+- Clinic detail + package expansion
+- Assign/reassign packages to clinics (`PUT /api/clinics/{id}/packages`)
+- Partial updates for clinic metadata (`PATCH /api/clinics/{id}`)
+- CRUD for packages (create, list, patch)
+- Append clinic offers to patient profiles (`POST /api/patients/{id}/offers`)
+
+### Repositories & Services
+**Files**:
+- `app/database/repositories/clinic_repository.py`
+- `app/database/repositories/package_repository.py`
+- `app/database/repositories/patient_profile_repository.py`
+- `app/database/repositories/patient_image_submission_repository.py`
+
+Repositories encapsulate Supabase/Postgres access and keep routing logic thin.
+
 ## Database Schema
 
 ### Current Implementation (Simplified)
-The current implementation uses a simplified schema with direct user-message relationships:
+In addition to the `messages` table, the system now persists:
+
+#### `patient_image_submissions`
+```sql
+CREATE TABLE patient_image_submissions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_profile_id UUID NOT NULL REFERENCES patient_profiles(id),
+    image_urls TEXT[] NOT NULL,
+    analysis_notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE INDEX idx_patient_image_submissions_profile_id
+    ON patient_image_submissions (patient_profile_id);
+```
+
+#### `packages` / `clinic_packages` / clinic extensions
+```sql
+CREATE TABLE packages (
+    id UUID PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    price NUMERIC(12,2),
+    currency TEXT NOT NULL DEFAULT 'USD',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
+);
+
+CREATE TABLE clinic_packages (
+    clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    package_id UUID NOT NULL REFERENCES packages(id) ON DELETE CASCADE,
+    assigned_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
+    PRIMARY KEY (clinic_id, package_id)
+);
+
+ALTER TABLE clinics
+    ADD COLUMN IF NOT EXISTS has_contract BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS package_ids UUID[] NOT NULL DEFAULT '{}'::uuid[];
+
+ALTER TABLE patient_profiles
+    ADD COLUMN IF NOT EXISTS clinic_offer_ids UUID[] NOT NULL DEFAULT '{}'::uuid[];
+```
 
 ### Messages Table
 ```sql

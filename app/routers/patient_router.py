@@ -5,15 +5,17 @@ API endpoints for patient data management.
 """
 
 import traceback
+import uuid
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Request, Depends
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.database.db import SessionLocal
 from app.database.repositories.patient_profile_repository import PatientProfileRepository
 from app.database.repositories.medical_background_repository import MedicalBackgroundRepository
 from app.database.repositories.consultation_repository import ConsultationRepository
+from app.database.repositories.clinic_repository import ClinicRepository
 from app.config.rate_limits import limiter, RateLimitConfig
 from app.utils import ErrorUtils
 
@@ -61,6 +63,7 @@ async def get_all_patients(
                 "phone": patient.phone,
                 "age": patient.age,
                 "location": patient.location,
+                "clinicOffers": [str(clinic_id) for clinic_id in (patient.clinic_offer_ids or [])],
                 "created_at": patient.created_at.isoformat(),
                 "updated_at": patient.updated_at.isoformat()
             })
@@ -195,6 +198,7 @@ async def get_patient_details(
             "email": patient.email,
             "phone": patient.phone,
             "ageRange": f"{patient.age}-{patient.age+10}" if patient.age else None,
+            "clinicOffers": [str(clinic_id) for clinic_id in (patient.clinic_offer_ids or [])],
             "medicalSummary": medical_summary,
             "hairLossProfile": hair_loss_profile,
             "consultationStatus": consultation_status,
@@ -275,6 +279,12 @@ class HairLossProfileUpdate(BaseModel):
     pattern: List[str]
     familyHistory: List[str]
     previousTreatments: List[str]
+
+class PatientOffersRequest(BaseModel):
+    clinic_ids: List[uuid.UUID] = Field(..., alias="clinicIds")
+
+    class Config:
+        allow_population_by_field_name = True
 
 class PatientProfileUpdate(BaseModel):
     name: Optional[str] = None
@@ -432,6 +442,7 @@ async def update_patient_profile(
             "email": updated_patient.email,
             "phone": updated_patient.phone,
             "ageRange": f"{updated_patient.age}-{updated_patient.age+10}" if updated_patient.age else None,
+            "clinicOffers": [str(clinic_id) for clinic_id in (updated_patient.clinic_offer_ids or [])],
             "medicalSummary": medical_summary,
             "hairLossProfile": hair_loss_profile,
             "journeyStage": update_data.journeyStage or "discovery",
@@ -445,6 +456,60 @@ async def update_patient_profile(
             "message": "Patient profile updated successfully"
         }
         
+    except HTTPException:
+        raise
+    except Exception as exception:
+        traceback.print_exc()
+        raise ErrorUtils.toHTTPException(exception)
+
+
+@router.post("/{patient_id}/offers")
+@limiter.limit(RateLimitConfig.CHAT)
+async def add_patient_offers(
+    request: Request,
+    patient_id: str,
+    payload: PatientOffersRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Append clinic offers to a patient profile.
+    """
+    try:
+        patient_repository = PatientProfileRepository(db)
+        clinic_repository = ClinicRepository(db)
+
+        patient = patient_repository.get_by_id(patient_id)
+        if not patient:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Patient not found: {patient_id}"
+            )
+
+        clinic_ids = list(payload.clinic_ids)
+        clinics = clinic_repository.get_by_ids(clinic_ids)
+        found_ids = {clinic.id for clinic in clinics}
+        missing_ids = sorted(
+            {clinic_id for clinic_id in clinic_ids if clinic_id not in found_ids}
+        )
+        if missing_ids:
+            missing_str = ", ".join(str(clinic_id) for clinic_id in missing_ids)
+            raise HTTPException(
+                status_code=404,
+                detail=f"Clinics not found: {missing_str}"
+            )
+
+        updated_patient = patient_repository.add_clinic_offers(patient, clinic_ids)
+
+        return {
+            "success": True,
+            "data": {
+                "id": str(updated_patient.id),
+                "clinicOffers": [
+                    str(clinic_id) for clinic_id in (updated_patient.clinic_offer_ids or [])
+                ],
+            },
+            "message": "Clinic offers updated successfully",
+        }
     except HTTPException:
         raise
     except Exception as exception:

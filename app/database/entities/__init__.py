@@ -9,3 +9,6 @@ from .conversation_state import ConversationState
 from .connection import Connection
 from .connection_change import ConnectionChange
 from .media import Media
+from .patient_image_submission import PatientImageSubmission
+from .clinic import Clinic
+from .package import Package
