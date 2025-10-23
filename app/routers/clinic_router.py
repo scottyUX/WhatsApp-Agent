@@ -52,14 +52,38 @@ def _serialize_clinic(clinic) -> ClinicResponse:
     # Mirror package IDs from the attached packages if they are not already hydrated
     package_ids = clinic.package_ids or [pkg.id for pkg in clinic.packages]
 
-    return ClinicResponse.model_validate(
-        clinic,
-        from_attributes=True,
-        update={
-            "package_ids": package_ids,
-            "packages": packages,
-        },
-    )
+    # Create a dict from the clinic object and update with our computed fields
+    clinic_data = {
+        "id": clinic.id,
+        "place_id": clinic.place_id,
+        "title": clinic.title,
+        "location": clinic.location,
+        "city": clinic.city,
+        "state": clinic.state,
+        "country_code": clinic.country_code,
+        "lat": clinic.lat,
+        "lng": clinic.lng,
+        "website": clinic.website,
+        "phone": clinic.phone,
+        "email": clinic.email,
+        "address": clinic.address,
+        "rating": clinic.rating,
+        "reviews_count": clinic.reviews_count,
+        "categories": clinic.categories or [],
+        "image_url": clinic.image_url,
+        "opening_hours": clinic.opening_hours,
+        "additional_info": clinic.additional_info,
+        "price_range": clinic.price_range,
+        "availability": clinic.availability,
+        "country": clinic.country,
+        "has_contract": clinic.has_contract,
+        "package_ids": package_ids,
+        "packages": packages,
+        "created_at": clinic.created_at,
+        "updated_at": clinic.updated_at,
+    }
+
+    return ClinicResponse.model_validate(clinic_data)
 
 
 @router.get("/", response_model=ClinicListResponse)
