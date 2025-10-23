@@ -10,9 +10,13 @@ from app.dependencies.repositories import (
     get_user_repository,
     get_message_repository,
     get_patient_image_submission_repository,
+    get_patient_profile_repository,
 )
 from app.database.repositories.patient_image_submission_repository import (
     PatientImageSubmissionRepository,
+)
+from app.database.repositories.patient_profile_repository import (
+    PatientProfileRepository,
 )
 
 
@@ -43,9 +47,16 @@ def get_patient_image_service(
         PatientImageSubmissionRepository,
         Depends(get_patient_image_submission_repository),
     ],
-    storage_service: Annotated[SupabaseStorageService, Depends(get_supabase_storage_service)],
+    profile_repository: Annotated[
+        PatientProfileRepository,
+        Depends(get_patient_profile_repository),
+    ],
+    storage_service: Annotated[
+        SupabaseStorageService,
+        Depends(get_supabase_storage_service),
+    ],
 ) -> PatientImageService:
-    return PatientImageService(repository, storage_service)
+    return PatientImageService(repository, profile_repository, storage_service)
 
 
 # Service dependencies
