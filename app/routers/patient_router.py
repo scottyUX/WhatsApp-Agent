@@ -199,7 +199,8 @@ async def get_patient_details(
             "hairLossProfile": hair_loss_profile,
             "consultationStatus": consultation_status,
             "journeyStage": journey_stage,
-            "lastUpdated": patient.updated_at.isoformat()
+            "lastUpdated": patient.updated_at.isoformat(),
+            "created_at": patient.created_at.isoformat()
         }
         
         return {
@@ -434,7 +435,8 @@ async def update_patient_profile(
             "medicalSummary": medical_summary,
             "hairLossProfile": hair_loss_profile,
             "journeyStage": update_data.journeyStage or "discovery",
-            "lastUpdated": updated_patient.updated_at.isoformat()
+            "lastUpdated": updated_patient.updated_at.isoformat(),
+            "created_at": updated_patient.created_at.isoformat()
         }
         
         return {
