@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from app.config.settings import settings
-from app.routers import webhook, test, healthcheck, chat_router, whatsapp_router, medical_data_router, consultation_router, patient_router, consultant_note_router
+from app.routers import webhook, test, healthcheck, chat_router, whatsapp_router, medical_data_router, consultation_router, patient_router, consultant_note_router, image_analysis_router
 from app.config.rate_limits import limiter, custom_rate_limit_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -45,6 +45,7 @@ app.include_router(medical_data_router.router)
 app.include_router(consultation_router.router)
 app.include_router(patient_router.router)
 app.include_router(consultant_note_router.router)
+app.include_router(image_analysis_router.router)
 app.include_router(healthcheck.router)
 
 # Only include test router in debug mode
