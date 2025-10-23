@@ -7,8 +7,19 @@ Tests the deployed preview server endpoints
 import asyncio
 import aiohttp
 import json
+import os
 import time
 from typing import Dict, Any, List
+
+import pytest
+
+
+@pytest.fixture
+def base_url() -> str:
+    url = os.getenv("PREVIEW_BASE_URL")
+    if not url:
+        pytest.skip("PREVIEW_BASE_URL environment variable is not set.")
+    return url.rstrip("/")
 
 class PreviewServerTester:
     def __init__(self, base_url: str):
@@ -128,6 +139,7 @@ class PreviewServerTester:
             print(f"❌ WhatsApp webhook endpoint error: {e}")
             return False
 
+@pytest.mark.asyncio
 async def test_preview_server(base_url: str):
     """Test the preview server with comprehensive scenarios"""
     print(f"🚀 Testing Preview Server: {base_url}")

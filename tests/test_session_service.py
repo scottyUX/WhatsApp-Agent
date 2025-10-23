@@ -109,13 +109,12 @@ class TestSessionService:
     def test_set_session_lock_success(self, session_service, sample_device_id):
         """Test successful setting of session lock."""
         # Mock connection repository
-        mock_connection = Connection(
-            user_id=uuid.uuid4(),
-            device_id=None,
-            ip_address=None,
-            channel="chat",
-        )
+        mock_connection = Mock(spec=Connection)
         mock_connection.id = uuid.uuid4()
+        mock_connection.user_id = uuid.uuid4()
+        mock_connection.device_id = None
+        mock_connection.ip_address = None
+        mock_connection.channel = "chat"
         session_service.connection_repo.get_by_device_id.return_value = mock_connection
         
         # Mock conversation state repository
