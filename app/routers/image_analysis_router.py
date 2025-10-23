@@ -10,7 +10,7 @@ from app.database.db import get_db
 from sqlalchemy.orm import Session
 from app.database.repositories.media_repository import MediaRepository
 from app.database.repositories.patient_profile_repository import PatientProfileRepository
-from app.services.report_generation_service import report_service
+# from app.services.report_generation_service import report_service
 from datetime import datetime
 import uuid
 import base64
@@ -107,19 +107,13 @@ async def analyze_patient_images(
                 print(f"⚠️ Failed to store analysis in database: {str(e)}")
                 # Don't fail the request if database storage fails
         
-        # Generate PDF if requested
+        # Generate PDF if requested (temporarily disabled)
         if analysis_request.include_pdf:
             try:
-                patient_name = "Patient"
-                if analysis_request.patient_id:
-                    patient_repo = PatientProfileRepository(db)
-                    patient = patient_repo.get_by_id(analysis_request.patient_id)
-                    if patient:
-                        patient_name = patient.name
-                
-                pdf_content = report_service.generate_pdf_report(enhanced_report, patient_name)
-                enhanced_report['pdf_content'] = base64.b64encode(pdf_content).decode('utf-8')
-                print(f"📄 PDF report generated successfully")
+                print(f"⚠️ PDF generation temporarily disabled due to reportlab dependency")
+                # pdf_content = report_service.generate_pdf_report(enhanced_report, patient_name)
+                # enhanced_report['pdf_content'] = base64.b64encode(pdf_content).decode('utf-8')
+                # print(f"📄 PDF report generated successfully")
             except Exception as e:
                 print(f"⚠️ Failed to generate PDF: {str(e)}")
                 # Don't fail the request if PDF generation fails
@@ -303,8 +297,9 @@ async def generate_html_report(
             if patient:
                 patient_name = patient.name
         
-        # Generate HTML report
-        html_content = report_service.generate_html_report(result.data, patient_name)
+        # Generate HTML report (temporarily disabled)
+        # html_content = report_service.generate_html_report(result.data, patient_name)
+        html_content = f"<html><body><h1>Hair Transplant Analysis Report</h1><p>HTML generation temporarily disabled</p></body></html>"
         
         return Response(
             content=html_content,
