@@ -13,8 +13,10 @@ from app.routers import (
     patient_router,
     consultant_note_router,
     patient_image_router,
+    image_analysis_router,
+    clinic_router,
+    package_router,
 )
-from app.routers import webhook, test, healthcheck, chat_router, whatsapp_router, medical_data_router, consultation_router, patient_router, consultant_note_router, image_analysis_router
 from app.config.rate_limits import limiter, custom_rate_limit_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -27,6 +29,14 @@ tags_metadata = [
             "Manage image bundles captured for each patient profile. "
             "Use these endpoints to upload images tied to a patient profile and review previous submissions alongside analysis notes."
         ),
+    },
+    {
+        "name": "Clinics",
+        "description": "Manage clinic metadata and the packages offered at each location.",
+    },
+    {
+        "name": "Packages",
+        "description": "Maintain reusable package templates that can be assigned to clinics.",
     },
 ]
 
@@ -70,6 +80,8 @@ app.include_router(patient_router.router)
 app.include_router(consultant_note_router.router)
 app.include_router(patient_image_router.router)
 app.include_router(image_analysis_router.router)
+app.include_router(clinic_router.router)
+app.include_router(package_router.router)
 app.include_router(healthcheck.router)
 
 # Only include test router in debug mode
