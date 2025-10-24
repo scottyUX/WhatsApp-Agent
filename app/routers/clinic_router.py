@@ -47,19 +47,30 @@ def _serialize_packages(packages) -> List[PackageResponse]:
     ]
 
 
-def _serialize_clinic(clinic) -> ClinicResponse:
-    packages = _serialize_packages(clinic.packages or [])
+def _serialize_clinic(clinic, package_lookup: Optional[dict[uuid.UUID, object]] = None) -> ClinicResponse:
     # Mirror package IDs from the attached packages if they are not already hydrated
-    package_ids = clinic.package_ids or [pkg.id for pkg in clinic.packages]
+    package_ids = list(clinic.package_ids or [])
 
-    return ClinicResponse.model_validate(
-        clinic,
-        from_attributes=True,
-        update={
-            "package_ids": package_ids,
-            "packages": packages,
-        },
-    )
+    if package_lookup is not None:
+        packages = [
+            PackageResponse.model_validate(package_lookup[pkg_id], from_attributes=True)
+            for pkg_id in package_ids
+            if pkg_id in package_lookup
+        ]
+    else:
+        packages = _serialize_packages(clinic.packages or [])
+
+    # Build a payload shaped like ClinicResponse while normalizing optional collections
+    base_payload = {
+        field_name: getattr(clinic, field_name, None)
+        for field_name in ClinicResponse.model_fields
+        if field_name not in {"package_ids", "packages"}
+    }
+    base_payload["categories"] = base_payload.get("categories") or []
+    base_payload["package_ids"] = package_ids
+    base_payload["packages"] = packages
+
+    return ClinicResponse.model_validate(base_payload)
 
 
 @router.get("/", response_model=ClinicListResponse)
@@ -97,9 +108,20 @@ async def list_clinics(
             has_contract=has_contract,
         )
 
+        package_repo = PackageRepository(db)
+        all_package_ids = {
+            pkg_id
+            for clinic in clinics
+            for pkg_id in (clinic.package_ids or [])
+        }
+        package_lookup = None
+        if all_package_ids:
+            fetched_packages = package_repo.get_by_ids(list(all_package_ids))
+            package_lookup = {pkg.id: pkg for pkg in fetched_packages}
+
         total_pages = math.ceil(total / limit) if total else 0
         payload = [
-            _serialize_clinic(clinic)
+            _serialize_clinic(clinic, package_lookup)
             for clinic in clinics
         ]
 
@@ -141,7 +163,44 @@ async def get_clinic(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Clinic not found: {clinic_id}",
             )
-        return _serialize_clinic(clinic)
+        package_repo = PackageRepository(db)
+        packages = package_repo.get_by_ids(list(clinic.package_ids or []))
+        package_lookup = {pkg.id: pkg for pkg in packages} or None
+        return _serialize_clinic(clinic, package_lookup)
+    except Exception as exception:  # pragma: no cover - defensive logging
+        traceback.print_exc()
+        raise ErrorUtils.toHTTPException(exception)
+
+
+@router.get("/{clinic_id}/packages", response_model=List[PackageResponse])
+@limiter.limit(RateLimitConfig.DEFAULT)
+async def list_clinic_packages(
+    request: Request,
+    clinic_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Return all packages linked to a clinic.
+    """
+    try:
+        clinic_uuid = uuid.UUID(clinic_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Clinic ID must be a valid UUID.",
+        ) from exc
+
+    try:
+        clinic_repo = ClinicRepository(db)
+        clinic = clinic_repo.get_by_id(clinic_uuid)
+        if clinic is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Clinic not found: {clinic_id}",
+            )
+        package_repo = PackageRepository(db)
+        packages = package_repo.get_by_ids(list(clinic.package_ids or []))
+        return _serialize_packages(packages)
     except Exception as exception:  # pragma: no cover - defensive logging
         traceback.print_exc()
         raise ErrorUtils.toHTTPException(exception)
