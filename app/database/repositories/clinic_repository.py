@@ -50,6 +50,10 @@ class ClinicRepository:
             .all()
         )
 
+    def get_packages(self, clinic: Clinic) -> List[Package]:
+        """Get all packages associated with a clinic."""
+        return list(clinic.packages)
+
     def set_packages(
         self,
         clinic: Clinic,

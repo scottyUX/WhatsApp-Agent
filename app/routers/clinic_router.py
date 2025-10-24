@@ -337,3 +337,106 @@ async def update_clinic(
     except Exception as exception:  # pragma: no cover - defensive logging
         traceback.print_exc()
         raise ErrorUtils.toHTTPException(exception)
+
+
+@router.post("/{clinic_id}/packages/{package_id}", response_model=ClinicResponse)
+@limiter.limit(RateLimitConfig.DEFAULT)
+async def add_package_to_clinic(
+    request: Request,
+    clinic_id: str,
+    package_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Add a package to a clinic's package list.
+    """
+    try:
+        clinic_uuid = uuid.UUID(clinic_id)
+        package_uuid = uuid.UUID(package_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid UUID format.",
+        ) from exc
+
+    try:
+        clinic_repo = ClinicRepository(db)
+        package_repo = PackageRepository(db)
+
+        clinic = clinic_repo.get_by_id(clinic_uuid)
+        if clinic is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Clinic not found: {clinic_id}",
+            )
+
+        package = package_repo.get_by_id(package_uuid)
+        if package is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Package not found: {package_id}",
+            )
+
+        # Get current packages and add the new one
+        current_packages = clinic_repo.get_packages(clinic)
+        if package not in current_packages:
+            updated_packages = list(current_packages) + [package]
+            clinic = clinic_repo.set_packages(clinic, updated_packages)
+
+        return _serialize_clinic(clinic)
+    except HTTPException:
+        raise
+    except Exception as exception:  # pragma: no cover - defensive logging
+        traceback.print_exc()
+        raise ErrorUtils.toHTTPException(exception)
+
+
+@router.delete("/{clinic_id}/packages/{package_id}", response_model=ClinicResponse)
+@limiter.limit(RateLimitConfig.DEFAULT)
+async def remove_package_from_clinic(
+    request: Request,
+    clinic_id: str,
+    package_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Remove a package from a clinic's package list.
+    """
+    try:
+        clinic_uuid = uuid.UUID(clinic_id)
+        package_uuid = uuid.UUID(package_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid UUID format.",
+        ) from exc
+
+    try:
+        clinic_repo = ClinicRepository(db)
+        package_repo = PackageRepository(db)
+
+        clinic = clinic_repo.get_by_id(clinic_uuid)
+        if clinic is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Clinic not found: {clinic_id}",
+            )
+
+        package = package_repo.get_by_id(package_uuid)
+        if package is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Package not found: {package_id}",
+            )
+
+        # Get current packages and remove the specified one
+        current_packages = clinic_repo.get_packages(clinic)
+        updated_packages = [pkg for pkg in current_packages if pkg.id != package.id]
+        clinic = clinic_repo.set_packages(clinic, updated_packages)
+
+        return _serialize_clinic(clinic)
+    except HTTPException:
+        raise
+    except Exception as exception:  # pragma: no cover - defensive logging
+        traceback.print_exc()
+        raise ErrorUtils.toHTTPException(exception)

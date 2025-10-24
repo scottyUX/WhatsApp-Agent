@@ -10,6 +10,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Integer,
     Numeric,
     String,
     Table,
@@ -73,6 +74,36 @@ class Package(Base):
         nullable=False,
     )
 
+    # Clinic relationship (one-to-many: clinic can have multiple packages)
+    clinic_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=True
+    )
+
+    # Treatment Specifics
+    grafts_count: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    hair_transplantation_method: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    stem_cell_therapy_sessions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # Travel & Accommodation
+    airport_lounge_access_included: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    airport_lounge_access_details: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    breakfast_included: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    hotel_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    hotel_nights_included: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    hotel_star_rating: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    private_translator_included: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    vip_transfer_details: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    # Aftercare & Follow-ups
+    aftercare_kit_supply_duration: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    laser_sessions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    online_follow_ups_duration: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    oxygen_therapy_sessions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    post_operation_medication_included: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    prp_sessions_included: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    sedation_included: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # Relationships
     clinics: Mapped[List["Clinic"]] = relationship(
         "Clinic",
         secondary="clinic_packages",

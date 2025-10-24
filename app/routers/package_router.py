@@ -89,6 +89,40 @@ async def create_package(
         raise ErrorUtils.toHTTPException(exception)
 
 
+@router.get("/{package_id}", response_model=PackageResponse)
+@limiter.limit(RateLimitConfig.DEFAULT)
+async def get_package(
+    request: Request,
+    package_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Get a specific package by ID.
+    """
+    try:
+        package_uuid = uuid.UUID(package_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Package ID must be a valid UUID.",
+        ) from exc
+
+    try:
+        repo = PackageRepository(db)
+        package = repo.get_by_id(package_uuid)
+        if package is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Package not found: {package_id}",
+            )
+        return _serialize_package(package)
+    except HTTPException:
+        raise
+    except Exception as exception:  # pragma: no cover - defensive logging
+        traceback.print_exc()
+        raise ErrorUtils.toHTTPException(exception)
+
+
 @router.patch("/{package_id}", response_model=PackageResponse)
 @limiter.limit(RateLimitConfig.DEFAULT)
 async def update_package(
@@ -126,6 +160,39 @@ async def update_package(
 
         package = repo.save(package)
         return _serialize_package(package)
+    except HTTPException:
+        raise
+    except Exception as exception:  # pragma: no cover - defensive logging
+        traceback.print_exc()
+        raise ErrorUtils.toHTTPException(exception)
+
+
+@router.delete("/{package_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(RateLimitConfig.DEFAULT)
+async def delete_package(
+    request: Request,
+    package_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Delete a package.
+    """
+    try:
+        package_uuid = uuid.UUID(package_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Package ID must be a valid UUID.",
+        ) from exc
+
+    try:
+        repo = PackageRepository(db)
+        success = repo.delete(package_uuid)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Package not found: {package_id}",
+            )
     except HTTPException:
         raise
     except Exception as exception:  # pragma: no cover - defensive logging

@@ -49,6 +49,25 @@ class PackageRepository:
         price: Optional[Decimal] = None,
         currency: str = "USD",
         is_active: bool = True,
+        clinic_id: Optional[uuid.UUID] = None,
+        grafts_count: Optional[str] = None,
+        hair_transplantation_method: Optional[str] = None,
+        stem_cell_therapy_sessions: int = 0,
+        airport_lounge_access_included: bool = False,
+        airport_lounge_access_details: Optional[str] = None,
+        breakfast_included: bool = False,
+        hotel_name: Optional[str] = None,
+        hotel_nights_included: int = 0,
+        hotel_star_rating: int = 0,
+        private_translator_included: bool = False,
+        vip_transfer_details: Optional[str] = None,
+        aftercare_kit_supply_duration: Optional[str] = None,
+        laser_sessions: int = 0,
+        online_follow_ups_duration: Optional[str] = None,
+        oxygen_therapy_sessions: int = 0,
+        post_operation_medication_included: bool = False,
+        prp_sessions_included: bool = False,
+        sedation_included: bool = False,
     ) -> Package:
         package = Package(
             name=name,
@@ -56,6 +75,25 @@ class PackageRepository:
             price=price,
             currency=currency,
             is_active=is_active,
+            clinic_id=clinic_id,
+            grafts_count=grafts_count,
+            hair_transplantation_method=hair_transplantation_method,
+            stem_cell_therapy_sessions=stem_cell_therapy_sessions,
+            airport_lounge_access_included=airport_lounge_access_included,
+            airport_lounge_access_details=airport_lounge_access_details,
+            breakfast_included=breakfast_included,
+            hotel_name=hotel_name,
+            hotel_nights_included=hotel_nights_included,
+            hotel_star_rating=hotel_star_rating,
+            private_translator_included=private_translator_included,
+            vip_transfer_details=vip_transfer_details,
+            aftercare_kit_supply_duration=aftercare_kit_supply_duration,
+            laser_sessions=laser_sessions,
+            online_follow_ups_duration=online_follow_ups_duration,
+            oxygen_therapy_sessions=oxygen_therapy_sessions,
+            post_operation_medication_included=post_operation_medication_included,
+            prp_sessions_included=prp_sessions_included,
+            sedation_included=sedation_included,
         )
         self.db.add(package)
         self.db.commit()
@@ -77,3 +115,13 @@ class PackageRepository:
         for package in result:
             self.db.refresh(package)
         return result
+
+    def delete(self, package_id: uuid.UUID) -> bool:
+        """Delete a package and return True if successful."""
+        package = self.get_by_id(package_id)
+        if package is None:
+            return False
+        
+        self.db.delete(package)
+        self.db.commit()
+        return True
