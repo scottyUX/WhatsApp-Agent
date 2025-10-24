@@ -10,6 +10,9 @@ from app.database.db import get_db
 from sqlalchemy.orm import Session
 from app.database.repositories.media_repository import MediaRepository
 from app.database.repositories.patient_profile_repository import PatientProfileRepository
+from app.database.repositories.patient_image_submission_repository import (
+    PatientImageSubmissionRepository,
+)
 # from app.services.report_generation_service import report_service
 from datetime import datetime
 import uuid
@@ -95,18 +98,42 @@ async def analyze_patient_images(
                 # Store analysis in patient profile (you might want to create a separate table for this)
                 patient_repo = PatientProfileRepository(db)
                 patient = patient_repo.get_by_id(analysis_request.patient_id)
-                
+
                 if patient:
-                    # Update patient with hair transplant analysis
-                    # This would require adding a hair_transplant_analysis field to the patient model
                     print(f"📝 Storing analysis for patient {analysis_request.patient_id}")
+                    submission_repo = PatientImageSubmissionRepository(db)
+
+                    summary_note = None
+                    if isinstance(analysis_result, dict):
+                        for key in ("summary", "overall_summary", "key_findings"):
+                            value = analysis_result.get(key)
+                            if isinstance(value, str):
+                                summary_note = value
+                                break
+
+                    existing_submission = submission_repo.get_latest_by_patient_profile(
+                        analysis_request.patient_id
+                    )
+
+                    if existing_submission:
+                        submission_repo.update_analysis(
+                            existing_submission.id,
+                            analysis=analysis_result if isinstance(analysis_result, dict) else None,
+                            analysis_notes=summary_note or existing_submission.analysis_notes,
+                        )
+                    else:
+                        submission_repo.create(
+                            patient_profile_id=analysis_request.patient_id,
+                            image_urls=analysis_request.image_urls,
+                            analysis=analysis_result if isinstance(analysis_result, dict) else None,
+                            analysis_notes=summary_note,
+                        )
                 else:
                     print(f"⚠️ Patient {analysis_request.patient_id} not found")
-                    
+
             except Exception as e:
                 print(f"⚠️ Failed to store analysis in database: {str(e)}")
                 # Don't fail the request if database storage fails
-        
         # Generate PDF if requested (temporarily disabled)
         if analysis_request.include_pdf:
             try:
@@ -117,7 +144,7 @@ async def analyze_patient_images(
             except Exception as e:
                 print(f"⚠️ Failed to generate PDF: {str(e)}")
                 # Don't fail the request if PDF generation fails
-        
+
         print(f"✅ Image analysis completed successfully")
         
         return ImageAnalysisResponse(

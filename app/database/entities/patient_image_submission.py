@@ -1,9 +1,9 @@
 import typing
 import uuid
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -21,14 +21,13 @@ class PatientImageSubmission(Base, IdMixin):
     patient_profile_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("patient_profiles.id"), nullable=False
     )
-    image_urls: Mapped[List[str]] = mapped_column(
-        ARRAY(String), nullable=False
-    )
+    image_urls: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=False)
+    analysis: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     analysis_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     patient_profile: Mapped["PatientProfile"] = relationship(
         "PatientProfile", back_populates="image_submissions", init=False
     )
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pragma: no cover - debug helper
         return f"<PatientImageSubmission {self.id}>"

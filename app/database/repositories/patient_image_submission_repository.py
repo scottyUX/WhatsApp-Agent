@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 from sqlalchemy.orm import Session
 
@@ -15,16 +15,22 @@ class PatientImageSubmissionRepository:
     def _coerce_uuid(self, value: Union[str, uuid.UUID]) -> uuid.UUID:
         return value if isinstance(value, uuid.UUID) else uuid.UUID(str(value))
 
+    @staticmethod
+    def _normalise_urls(urls: Iterable[str]) -> List[str]:
+        return sorted(urls)
+
     def create(
         self,
         *,
         patient_profile_id: Union[str, uuid.UUID],
         image_urls: List[str],
+        analysis: Optional[Dict[str, Any]] = None,
         analysis_notes: Optional[str] = None,
     ) -> PatientImageSubmission:
         submission = PatientImageSubmission(
             patient_profile_id=self._coerce_uuid(patient_profile_id),
             image_urls=image_urls,
+            analysis=analysis,
             analysis_notes=analysis_notes,
         )
         self.db.add(submission)
@@ -45,6 +51,18 @@ class PatientImageSubmissionRepository:
             .all()
         )
 
+    def find_by_profile_and_images(
+        self,
+        *,
+        patient_profile_id: Union[str, uuid.UUID],
+        image_urls: Iterable[str],
+    ) -> Optional[PatientImageSubmission]:
+        target = self._normalise_urls(image_urls)
+        for submission in self.list_by_patient_profile(patient_profile_id):
+            if self._normalise_urls(submission.image_urls) == target:
+                return submission
+        return None
+
     def list_all(self) -> List[PatientImageSubmission]:
         return (
             self.db.query(PatientImageSubmission)
@@ -52,10 +70,24 @@ class PatientImageSubmissionRepository:
             .all()
         )
 
+    def get_latest_by_patient_profile(
+        self, patient_profile_id: Union[str, uuid.UUID]
+    ) -> Optional[PatientImageSubmission]:
+        return (
+            self.db.query(PatientImageSubmission)
+            .filter(
+                PatientImageSubmission.patient_profile_id
+                == self._coerce_uuid(patient_profile_id)
+            )
+            .order_by(PatientImageSubmission.created_at.desc())
+            .first()
+        )
+
     def update_analysis(
         self,
         submission_id: Union[str, uuid.UUID],
-        analysis_notes: Optional[str],
+        analysis: Optional[Dict[str, Any]],
+        analysis_notes: Optional[str] = None,
     ) -> Optional[PatientImageSubmission]:
         submission = (
             self.db.query(PatientImageSubmission)
@@ -65,6 +97,7 @@ class PatientImageSubmissionRepository:
         if not submission:
             return None
 
+        submission.analysis = analysis
         submission.analysis_notes = analysis_notes
         self.db.add(submission)
         self.db.commit()

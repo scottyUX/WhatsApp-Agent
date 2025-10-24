@@ -47,11 +47,24 @@ def _serialize_packages(packages) -> List[PackageResponse]:
     ]
 
 
-def _serialize_clinic(clinic, package_lookup: Optional[dict[uuid.UUID, object]] = None) -> ClinicResponse:
-    # Mirror package IDs from the attached packages if they are not already hydrated
+def _serialize_clinic(
+    clinic,
+    package_lookup: Optional[dict[uuid.UUID, object]] = None,
+) -> ClinicResponse:
     package_ids = list(clinic.package_ids or [])
 
-    # Create a dict from the clinic object and update with our computed fields
+    packages: List[PackageResponse] = []
+    if package_lookup:
+        packages = [
+            PackageResponse.model_validate(package_lookup[pkg_id], from_attributes=True)
+            for pkg_id in package_ids
+            if package_lookup.get(pkg_id)
+        ]
+    elif getattr(clinic, "packages", None):
+        packages = _serialize_packages(clinic.packages)
+        if not package_ids:
+            package_ids = [pkg.id for pkg in clinic.packages]
+
     clinic_data = {
         "id": clinic.id,
         "place_id": clinic.place_id,
@@ -120,20 +133,9 @@ async def list_clinics(
             has_contract=has_contract,
         )
 
-        package_repo = PackageRepository(db)
-        all_package_ids = {
-            pkg_id
-            for clinic in clinics
-            for pkg_id in (clinic.package_ids or [])
-        }
-        package_lookup = None
-        if all_package_ids:
-            fetched_packages = package_repo.get_by_ids(list(all_package_ids))
-            package_lookup = {pkg.id: pkg for pkg in fetched_packages}
-
         total_pages = math.ceil(total / limit) if total else 0
         payload = [
-            _serialize_clinic(clinic, package_lookup)
+            _serialize_clinic(clinic)
             for clinic in clinics
         ]
 
@@ -175,10 +177,7 @@ async def get_clinic(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Clinic not found: {clinic_id}",
             )
-        package_repo = PackageRepository(db)
-        packages = package_repo.get_by_ids(list(clinic.package_ids or []))
-        package_lookup = {pkg.id: pkg for pkg in packages} or None
-        return _serialize_clinic(clinic, package_lookup)
+        return _serialize_clinic(clinic)
     except Exception as exception:  # pragma: no cover - defensive logging
         traceback.print_exc()
         raise ErrorUtils.toHTTPException(exception)

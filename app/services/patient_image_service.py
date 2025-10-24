@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from app.database.entities import PatientImageSubmission
 from app.database.repositories.patient_image_submission_repository import (
@@ -42,6 +42,7 @@ class PatientImageService:
         patient_profile_id: Union[str, uuid.UUID],
         uploads: List[UploadedImage],
         analysis_notes: Optional[str] = None,
+        analysis: Optional[Dict[str, Any]] = None,
     ) -> PatientImageSubmission:
         self._validate_upload_count(uploads)
         try:
@@ -63,6 +64,7 @@ class PatientImageService:
         return self.repository.create(
             patient_profile_id=profile_uuid,
             image_urls=image_urls,
+            analysis=analysis,
             analysis_notes=analysis_notes,
         )
 
