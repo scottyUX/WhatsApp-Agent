@@ -5,7 +5,14 @@ from app.database.entities import PatientImageSubmission
 from app.database.repositories.patient_image_submission_repository import (
     PatientImageSubmissionRepository,
 )
+from app.database.repositories.patient_profile_repository import (
+    PatientProfileRepository,
+)
 from app.services.supabase_storage_service import SupabaseStorageService, UploadedImage
+
+
+class PatientNotFoundError(Exception):
+    """Raised when a patient profile cannot be found."""
 
 
 class PatientImageService:
@@ -14,9 +21,11 @@ class PatientImageService:
     def __init__(
         self,
         repository: PatientImageSubmissionRepository,
+        profile_repository: PatientProfileRepository,
         storage_service: SupabaseStorageService,
     ) -> None:
         self.repository = repository
+        self.profile_repository = profile_repository
         self.storage_service = storage_service
 
     @staticmethod
@@ -35,11 +44,18 @@ class PatientImageService:
         analysis_notes: Optional[str] = None,
     ) -> PatientImageSubmission:
         self._validate_upload_count(uploads)
-        profile_uuid = (
-            patient_profile_id
-            if isinstance(patient_profile_id, uuid.UUID)
-            else uuid.UUID(str(patient_profile_id))
-        )
+        try:
+            profile_uuid = (
+                patient_profile_id
+                if isinstance(patient_profile_id, uuid.UUID)
+                else uuid.UUID(str(patient_profile_id))
+            )
+        except ValueError as exc:
+            raise ValueError("patient_profile_id must be a valid UUID.") from exc
+
+        patient = self.profile_repository.get_by_id(profile_uuid)
+        if not patient:
+            raise PatientNotFoundError(f"Patient profile not found: {profile_uuid}")
 
         image_urls = self.storage_service.upload_patient_images(
             profile_uuid, uploads

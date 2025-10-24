@@ -1,3 +1,4 @@
+import uuid
 from typing import List, Optional
 
 from fastapi import (
@@ -13,6 +14,7 @@ from fastapi import (
 from app.config.rate_limits import RateLimitConfig, limiter
 from app.dependencies.services import PatientImageServiceDep
 from app.models.patient_image import PatientImageSubmissionModel
+from app.services.patient_image_service import PatientNotFoundError
 from app.services.supabase_storage_service import UploadedImage
 from app.utils import ErrorUtils
 
@@ -73,6 +75,8 @@ async def upload_patient_images(
         return PatientImageSubmissionModel.model_validate(submission)
     except HTTPException:
         raise
+    except PatientNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 - convert to HTTP error
@@ -97,16 +101,18 @@ async def list_patient_image_submissions(
     ),
 ) -> List[PatientImageSubmissionModel]:
     try:
+        if patient_profile_id is not None:
+            try:
+                uuid.UUID(patient_profile_id)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail="patient_profile_id must be a valid UUID.",
+                ) from exc
+
         submissions = patient_image_service.list_submissions(
             patient_profile_id=patient_profile_id,
         )
-        if not submissions:
-            detail = (
-                f"No image submissions found for patient profile {patient_profile_id}."
-                if patient_profile_id
-                else "No patient image submissions found."
-            )
-            raise HTTPException(status_code=404, detail=detail)
         return [
             PatientImageSubmissionModel.model_validate(submission)
             for submission in submissions
