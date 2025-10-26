@@ -111,23 +111,29 @@ async def analyze_patient_images(
                                 summary_note = value
                                 break
 
-                    existing_submission = submission_repo.get_latest_by_patient_profile(
-                        analysis_request.patient_id
+                    # First try to find existing submission with matching image URLs
+                    existing_submission = submission_repo.find_by_profile_and_images(
+                        patient_profile_id=analysis_request.patient_id,
+                        image_urls=analysis_request.image_urls
                     )
 
                     if existing_submission:
+                        # Update existing submission with analysis
                         submission_repo.update_analysis(
                             existing_submission.id,
                             analysis=analysis_result if isinstance(analysis_result, dict) else None,
                             analysis_notes=summary_note or existing_submission.analysis_notes,
                         )
+                        print(f"✅ Updated existing submission {existing_submission.id} with analysis")
                     else:
-                        submission_repo.create(
+                        # Create new submission with analysis
+                        new_submission = submission_repo.create(
                             patient_profile_id=analysis_request.patient_id,
                             image_urls=analysis_request.image_urls,
                             analysis=analysis_result if isinstance(analysis_result, dict) else None,
                             analysis_notes=summary_note,
                         )
+                        print(f"✅ Created new submission {new_submission.id} with analysis")
                 else:
                     print(f"⚠️ Patient {analysis_request.patient_id} not found")
 
