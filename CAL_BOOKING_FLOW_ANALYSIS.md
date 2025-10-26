@@ -1,246 +1,201 @@
-# Cal.com Booking Flow Enhancement - Technical Analysis
+# Cal.com Booking → Patient Information Flow
 
-## 🎯 **Problem Statement**
+## 📋 **Current Flow (Broken)**
 
-Currently, when patients book consultations through Cal.com, **no patient profiles are created** until they complete the medical questionnaire. This creates a gap where consultants cannot see new bookings in their dashboard immediately after booking completion.
-
-## 📊 **Current Flow vs Desired Flow**
-
-### ❌ **Current Flow (Broken)**
-1. Patient books via Cal.com → Cal webhook fires
-2. `ConsultationService.process_cal_webhook()` creates consultation record
-3. **No user or patient profile created** (only consultation exists)
-4. Consultant dashboard shows consultation but **no patient details**
-5. Patient completes medical questionnaire → User + PatientProfile created
-6. **Only then** can consultant see full patient information
-
-### ✅ **Desired Flow (Fixed)**
-1. Patient books via Cal.com → Cal webhook fires
-2. `ConsultationService.process_cal_webhook()` creates:
-   - **User record** (from attendee email/phone)
-   - **PatientProfile record** (with attendee details)
-   - **Consultation record** (linked to patient profile)
-3. Consultant dashboard immediately shows **complete patient information**
-4. Patient completes medical questionnaire → Updates existing profile
-
-## 🔍 **Technical Analysis**
-
-### **Current Code Issues**
-
-#### 1. **ConsultationService._handle_consultation_created()**
-```python
-# Current code (lines 104-110)
-patient_profile = self._find_patient_by_email(attendee_email)
-
-# Create consultation
-consultation = self.consultation_repository.create(
-    patient_profile_id=patient_profile.id if patient_profile else None,  # ❌ Often None
-    # ... other fields
-)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  1. PATIENT BOOKS ON CAL.COM                                     │
+│  - Fills out booking form                                        │
+│  - Submits booking                                               │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  2. CAL.COM CREATES BOOKING                                      │
+│  - Generates booking with ID (e.g., "iufb9wQ9g2MiQiLhgmfopb")   │
+│  - Sends webhook to our backend                                 │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  3. WEBHOOK PROCESSING (BACKEND) ✅                              │
+│  - Receives webhook payload                                     │
+│  - Extracts attendee info: name, email, phone                  │
+│  - Creates User record                                          │
+│  - Creates PatientProfile record                                │
+│  - Creates Consultation record with booking ID                  │
+│  ✅ SUCCESS: Data saved to database                             │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  4. CAL.COM REDIRECTS TO QUESTIONNAIRE PAGE                     │
+│  URL: https://istanbulmedic.com/booking-confirmation/[UID]     │
+│  Query Params: ?title={title}&attendeeName={name}...            │
+│  ❌ PROBLEM: Query params contain PLACEHOLDERS                   │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  5. FRONTEND ATTEMPTS TO FETCH PATIENT DATA                      │
+│  - Reads bookingUID from URL                                    │
+│  - Calls: GET /api/consultations/{bookingUID}                   │
+│  ❌ PROBLEM: If bookingUID is "[bookingUid]" placeholder       │
+│  ❌ OR: Consultation not found in database                      │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  6. FRONTEND FALLS BACK TO QUERY PARAMS                         │
+│  - Uses Cal.com query parameters                                │
+│  - These contain {title}, {attendee.name}, etc.                 │
+│  ❌ RESULTS IN: Invalid Date, {attendee.name} display          │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**Problem**: If no existing patient profile found, `patient_profile_id=None`, so consultation is orphaned.
+## ✅ **Desired Flow (Fixed)**
 
-#### 2. **Missing User Creation**
-- Cal.com webhook only creates consultation records
-- No User records created for new attendees
-- PatientProfile requires `user_id` (non-nullable FK)
-
-#### 3. **Limited Data Extraction**
-```python
-# Current code only extracts basic attendee info
-attendee_name = attendee.get("name", "Unknown")
-attendee_email = attendee.get("email", "")
-attendee_timezone = attendee.get("timeZone")
+```mermaid
+flowchart TD
+    A[Patient books on Cal.com<br/>selects slot + answers custom questions] --> B[Cal.com creates booking<br/>bookingId + attendee payload]
+    B --> C[Webhook POST /api/cal-webhook<br/>ConsultationService]
+    C --> D[Create/find User (phone→email fallback)]
+    C --> E[Create/find PatientProfile<br/>link to User]
+    C --> F[Create Consultation row<br/>zoom_meeting_id = bookingId]
+    B --> G[Cal.com redirect<br/>/booking-confirmation/{bookingId}?title={title}...]
+    G --> H[Next.js page resolves real bookingId<br/>ignore placeholder params]
+    H --> I[GET /api/consultations/{bookingId}]
+    I -->|success| J[Appointment card shows real data]
+    I -->|404/failure| K[Warn patient + allow manual entry]
+    J --> L[Patient submits questionnaire<br/>POST /api/medical/questionnaire]
+    L --> M[MedicalDataService updates PatientProfile]
 ```
 
-**Missing**: Phone numbers, location, and other custom form responses from Cal.com.
-
-## 🛠️ **Proposed Solution**
-
-### **Enhanced ConsultationService Implementation**
-
-#### 1. **Extract Additional Attendee Data**
-```python
-def _extract_phone_from_responses(self, booking_data: Dict[str, Any]) -> Optional[str]:
-    """Extract phone number from Cal.com responses."""
-    responses = booking_data.get("responses", {})
-    phone_fields = ["phone", "phone_number", "phoneNumber", "mobile", "telephone"]
-    # ... implementation
-
-def _extract_location_from_responses(self, booking_data: Dict[str, Any]) -> Optional[str]:
-    """Extract location from Cal.com responses."""
-    responses = booking_data.get("responses", {})
-    location_fields = ["location", "city", "country", "address", "where_are_you_from"]
-    # ... implementation
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  1. PATIENT BOOKS ON CAL.COM                                     │
+│  - Fills out booking form                                        │
+│  - Submits booking                                               │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  2. CAL.COM SENDS WEBHOOK TO OUR BACKEND                         │
+│  Webhook URL: /api/cal-webhook                                   │
+│  Payload: { triggerEvent: "BOOKING_CREATED", payload: {...} }  │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  3. BACKEND PROCESSES WEBHOOK ✅                                  │
+│  - Extracts: name, email, phone, location                       │
+│  - Creates User record                                          │
+│  - Creates PatientProfile record                                │
+│  - Creates Consultation record                                  │
+│  - Stores Cal.com booking ID in consultation                    │
+│  ✅ SUCCESS: All data saved to database                         │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  4. CAL.COM REDIRECTS TO QUESTIONNAIRE PAGE                      │
+│  URL: https://istanbulmedic.com/booking-confirmation/[REAL_ID]  │
+│  NOTE: Cal.com should pass REAL booking ID, not [bookingUid]   │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  5. FRONTEND FETCHES PATIENT DATA ✅                             │
+│  - Reads REAL bookingUID from URL                               │
+│  - Calls: GET /api/consultations/{REAL_ID}                       │
+│  - Backend finds consultation by booking ID                     │
+│  - Returns: { title, start_time, end_time, attendee_name... }   │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  6. QUESTIONNAIRE PAGE DISPLAYS CORRECT DATA ✅                 │
+│  - Shows real patient name                                       │
+│  - Shows real email                                              │
+│  - Shows correct appointment time                               │
+│  - Shows booking details                                         │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-#### 2. **Create User and Patient Profile**
-```python
-def _create_or_find_user_and_patient(
-    self, 
-    attendee_name: str, 
-    attendee_email: str, 
-    attendee_phone: Optional[str] = None,
-    attendee_location: Optional[str] = None,
-    cal_booking_id: Optional[str] = None
-) -> tuple[Optional[User], Optional[PatientProfile]]:
-    """Create or find user and patient profile for booking."""
-    
-    # 1. Create/find User
-    user_phone = attendee_phone or attendee_email  # Fallback to email
-    user = self.user_repository.get_by_phone_number(user_phone)
-    if not user:
-        user = self.user_repository.create(phone_number=user_phone, name=attendee_name)
-    
-    # 2. Create/find PatientProfile
-    patient_profile = self._find_patient_by_email(attendee_email)
-    if not patient_profile:
-        patient_profile = self.patient_profile_repository.create(
-            user_id=user.id,
-            name=attendee_name,
-            phone=attendee_phone or attendee_email,
-            email=attendee_email,
-            location=attendee_location
-        )
-    
-    return user, patient_profile
+## 🔍 **ROOT CAUSE ANALYSIS**
+
+### **Problem 1: Cal.com Redirect Format**
+Cal.com is redirecting to: `/booking-confirmation/[bookingUid]` 
+- The literal string `[bookingUid]` is being used, not a real booking ID
+- This happens when Cal.com custom redirect URL template is not configured properly
+
+### **Problem 2: Query Params Have Placeholders**
+Cal.com adds query params like: `?title={title}&attendeeName={attendee.name}`
+- These are **template strings** that Cal.com should replace with actual values
+- They're not being replaced, so we get literal `{title}` strings
+
+### **Problem 3: Missing Consultation Lookup**
+When frontend gets `[bookingUid]`, it can't look up the consultation because:
+- It queries `/api/consultations/[bookingUid]` (with literal placeholder)
+- Backend returns 404
+- Frontend falls back to query params (which have placeholders)
+
+## 💡 **SOLUTION OPTIONS**
+
+### **Option A: Fix Cal.com Redirect Configuration** (Recommended)
+**Configure Cal.com to redirect to:**
 ```
-
-#### 3. **Enhanced Webhook Processing**
-```python
-def _handle_consultation_created(self, booking_data: Dict[str, Any], webhook_payload: Dict[str, Any]) -> Dict[str, Any]:
-    # Extract enhanced attendee data
-    attendee_phone = self._extract_phone_from_responses(booking_data)
-    attendee_location = self._extract_location_from_responses(booking_data)
-    
-    # Create/find user and patient profile
-    user, patient_profile = self._create_or_find_user_and_patient(
-        attendee_name=attendee_name,
-        attendee_email=attendee_email,
-        attendee_phone=attendee_phone,
-        attendee_location=attendee_location,
-        cal_booking_id=cal_booking_id
-    )
-    
-    # Create consultation with proper patient_profile_id
-    consultation = self.consultation_repository.create(
-        patient_profile_id=patient_profile.id,  # ✅ Always linked
-        zoom_meeting_id=cal_booking_id,
-        attendee_phone=attendee_phone,  # ✅ Store phone in consultation
-        # ... other fields
-    )
+https://istanbulmedic.com/booking-confirmation/{bookingId}
 ```
-
-## 🗄️ **Database Schema Considerations**
-
-### **Current Schema**
-```sql
--- Users table
-users.id (UUID, PK)
-users.phone_number (String, unique, not null)
-users.name (String, nullable)
-
--- Patient Profiles table  
-patient_profiles.id (UUID, PK)
-patient_profiles.user_id (UUID, FK to users.id, not null)
-patient_profiles.name (String, not null)
-patient_profiles.phone (String, not null)
-patient_profiles.email (String, not null)
-patient_profiles.location (String, nullable)
-
--- Consultations table (appointment)
-consultation.id (String, PK)
-consultation.zoom_meeting_id (String, not null)  -- Stores Cal booking ID
-consultation.patient_profile_id (UUID, FK to patient_profiles.id, nullable)
-consultation.attendee_phone (String, nullable)
+Instead of:
 ```
-
-### **Cal Booking ID Storage Question**
-
-**Option A**: Add `cal_booking_id` to `patient_profiles` table
-```sql
-ALTER TABLE patient_profiles ADD COLUMN cal_booking_id VARCHAR(255) NULL;
+https://istanbulmedic.com/booking-confirmation/{bookingUid}
 ```
+- This should use the real booking ID in the redirect
+- Make sure Cal.com replaces `{bookingId}` with actual ID
 
-**Option B**: Use existing `consultation.zoom_meeting_id` (Recommended)
-- Cal booking ID already stored in `consultation.zoom_meeting_id`
-- Can find patient via: `consultation.zoom_meeting_id = cal_booking_id → consultation.patient_profile_id → patient_profile`
-- No schema changes needed
-
-**Recommendation**: Use Option B to avoid database migration.
-
-## 🧪 **Testing Strategy**
-
-### **Test Cases**
-1. **New Patient Booking**: Should create User + PatientProfile + Consultation
-2. **Existing Patient Booking**: Should find existing User + PatientProfile, create new Consultation
-3. **Booking with Phone**: Should extract and store phone number
-4. **Booking without Phone**: Should fallback to email for user lookup
-5. **Booking with Location**: Should extract and store location
-6. **Duplicate Booking**: Should handle gracefully without creating duplicates
-
-### **Sample Cal.com Webhook Payload**
-```json
-{
-  "type": "BOOKING_CREATED",
-  "data": {
-    "id": "cal_booking_12345",
-    "title": "Hair Transplant Consultation",
-    "startTime": "2025-10-26T15:00:00Z",
-    "endTime": "2025-10-26T15:15:00Z",
-    "attendees": [
-      {
-        "name": "John Doe",
-        "email": "john.doe@example.com",
-        "timeZone": "America/New_York"
-      }
-    ],
-    "responses": {
-      "phone": "+1-555-123-4567",
-      "location": "New York, NY",
-      "age": "35"
-    }
-  }
-}
+### **Option B: Store Booking Data in URL Fragment**
+Instead of relying on path parameter, pass data in URL hash:
 ```
+https://istanbulmedic.com/booking-confirmation#uid=iufb9wQ9g2MiQiLhgmfopb
+```
+- Can't be modified by Cal.com
+- Frontend can extract and use it
 
-## 🚀 **Implementation Status**
+### **Option C: Use Webhook Callback**
+Have our backend create a unique token when processing webhook:
+1. Webhook creates consultation
+2. Backend generates unique token (e.g., UUID)
+3. Backend stores token → booking ID mapping
+4. Redirect Cal.com to: `/booking-confirmation?token={unique_token}`
+5. Frontend fetches booking using token
 
-### **Completed**
-- ✅ Enhanced ConsultationService with user/patient creation logic
-- ✅ Phone and location extraction from Cal.com responses
-- ✅ User creation/lookup with phone number fallback
-- ✅ PatientProfile creation with proper user linking
-- ✅ Deduplication logic for repeat bookings
-- ✅ Comprehensive logging for debugging
+### **Option D: Accept Query Params But Validate**
+Keep current flow but validate that Cal.com passes real values:
+- If query params have placeholders, show warning
+- Patient can manually enter details
+- Store in database on form submission
 
-### **Pending**
-- ⏳ Database migration (if using Option A for cal_booking_id)
-- ⏳ End-to-end testing with real Cal.com webhooks
-- ⏳ Frontend updates to display new patient data immediately
+## 🎯 **RECOMMENDED SOLUTION**
 
-## 🎯 **Expected Outcome**
+**Option A + Frontend Enhancement:**
 
-After implementation:
-1. **Every Cal.com booking** creates a complete patient profile
-2. **Consultants see new patients** immediately in their dashboard
-3. **No more orphaned consultations** without patient details
-4. **Seamless integration** between booking and medical questionnaire flows
-5. **Better data capture** from Cal.com custom form responses
+1. **Fix Cal.com redirect** to use real booking ID
+2. **Frontend should:**
+   - Try to fetch from backend using booking ID from URL
+   - If that fails, try query params
+   - If query params have placeholders, show manual entry form
+   - Always show warning banner when using fallback data
 
-## ❓ **Questions for Codex**
+3. **Backend should:**
+   - Store consultation with Cal.com booking ID
+   - Return complete attendee info when queried
+   - Handle both `uid` and `id` fields from Cal.com
 
-1. **Database Schema**: Should we add `cal_booking_id` to `patient_profiles` or use existing `consultation.zoom_meeting_id`?
+## ❓ **QUESTION FOR YOU**
 
-2. **User Phone Field**: The `users.phone_number` field is used for both actual phone numbers and email fallbacks. Is this acceptable or should we add a separate `email` field?
+What's the **actual URL** when Cal.com redirects? 
+- Is it `https://istanbulmedic.com/booking-confirmation/[bookingUid]` (literal)?
+- Or does it have a real booking ID like `https://istanbulmedic.com/booking-confirmation/iufb9wQ9g2MiQiLhgmfopb`?
 
-3. **Deduplication Strategy**: Current logic matches by email first, then phone. Should we prioritize phone number matching for better deduplication?
-
-4. **Error Handling**: How should we handle cases where user creation succeeds but patient profile creation fails?
-
-5. **Migration Strategy**: If we need database changes, what's the safest way to deploy this without breaking existing functionality?
-
----
-*Document created: October 26, 2025*
-*Status: Ready for Codex review and recommendations*
+This will determine our fix approach.

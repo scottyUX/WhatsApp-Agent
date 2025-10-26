@@ -87,9 +87,10 @@ async def cal_webhook(request: Request, message_service: MessageServiceDep, db: 
         print(f"📅 CAL.COM WEBHOOK: Received booking notification")
         print(f"📅 CAL.COM WEBHOOK: Payload: {json.dumps(payload, indent=2)}")
         
-        # Debug: Check payload structure
-        print(f"📅 CAL.COM WEBHOOK: Event type: {payload.get('type', 'UNKNOWN')}")
-        print(f"📅 CAL.COM WEBHOOK: Data keys: {list(payload.get('data', {}).keys())}")
+        # Extract booking ID for logging
+        booking_data = payload.get("payload", payload.get("data", {}))
+        booking_uid = booking_data.get("uid", "UNKNOWN")
+        print(f"📅 CAL.COM WEBHOOK: Booking UID: {booking_uid}")
         
         # Process webhook using consultation service
         consultation_service = ConsultationService(db)
