@@ -93,6 +93,10 @@ class ConsultationRepository:
 
         return self.db.query(Consultation).filter(Consultation.patient_profile_id == patient_profile_id).all()
 
+    def get_by_cal_booking_id(self, cal_booking_id: str) -> Optional[Consultation]:
+        """Get consultation by Cal.com booking ID (stored in zoom_meeting_id)."""
+        return self.db.query(Consultation).filter(Consultation.zoom_meeting_id == cal_booking_id).first()
+
     def get_todays_consultations(self) -> List[Consultation]:
         """Get all consultations for today."""
         today = datetime.now().date()
