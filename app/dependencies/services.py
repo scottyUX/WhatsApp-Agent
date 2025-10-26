@@ -1,3 +1,4 @@
+import logging
 from functools import lru_cache
 from typing import Annotated
 from fastapi import Depends
@@ -19,6 +20,7 @@ from app.database.repositories.patient_profile_repository import (
     PatientProfileRepository,
 )
 
+logger = logging.getLogger(__name__)
 
 def get_history_service(
     user_repo: Annotated[object, Depends(get_user_repository)],
@@ -51,11 +53,13 @@ def get_patient_image_service(
         PatientProfileRepository,
         Depends(get_patient_profile_repository),
     ],
-    storage_service: Annotated[
-        SupabaseStorageService,
-        Depends(get_supabase_storage_service),
-    ],
 ) -> PatientImageService:
+    try:
+        storage_service: SupabaseStorageService | None = get_supabase_storage_service()
+    except RuntimeError as exc:
+        logger.warning("Supabase storage unavailable: %s", exc)
+        storage_service = None
+
     return PatientImageService(repository, profile_repository, storage_service)
 
 

@@ -9,9 +9,10 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from app.database.entities import Consultation, PatientProfile
+from app.database.entities import Consultation, PatientProfile, User
 from app.database.repositories.consultation_repository import ConsultationRepository
 from app.database.repositories.patient_profile_repository import PatientProfileRepository
+from app.database.repositories.user_repository import UserRepository
 from app.database.db import SessionLocal
 
 
@@ -22,6 +23,7 @@ class ConsultationService:
         self.db = db
         self.consultation_repository = ConsultationRepository(db)
         self.patient_profile_repository = PatientProfileRepository(db)
+        self.user_repository = UserRepository(db)
     
     def process_cal_webhook(self, webhook_payload: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -94,15 +96,29 @@ class ConsultationService:
         attendee_name = "Unknown"
         attendee_email = ""
         attendee_timezone = None
+        attendee_phone = None
+        attendee_location = None
         
         if attendees:
             attendee = attendees[0]  # Use first attendee
             attendee_name = attendee.get("name", "Unknown")
             attendee_email = attendee.get("email", "")
             attendee_timezone = attendee.get("timeZone")
+            
+            # Extract phone number from responses if available
+            attendee_phone = self._extract_phone_from_responses(booking_data)
+            
+            # Extract location from responses if available
+            attendee_location = self._extract_location_from_responses(booking_data)
         
-        # Try to find existing patient profile by email
-        patient_profile = self._find_patient_by_email(attendee_email)
+        # Create or find user and patient profile
+        user, patient_profile = self._create_or_find_user_and_patient(
+            attendee_name=attendee_name,
+            attendee_email=attendee_email,
+            attendee_phone=attendee_phone,
+            attendee_location=attendee_location,
+            cal_booking_id=cal_booking_id
+        )
         
         # Create consultation
         consultation = self.consultation_repository.create(
@@ -112,6 +128,7 @@ class ConsultationService:
             start_time=start_time,
             attendee_name=attendee_name,
             attendee_email=attendee_email,
+            attendee_phone=attendee_phone,
             host_name="Dr. Istanbul Medic",
             host_email="doctor@istanbulmedic.com",
             raw_payload=webhook_payload,
@@ -125,7 +142,11 @@ class ConsultationService:
             "consultation_id": str(consultation.id),
             "cal_booking_id": cal_booking_id,
             "action": "created",
-            "patient_profile_linked": patient_profile is not None
+            "patient_profile_linked": patient_profile is not None,
+            "user_created": user is not None,
+            "patient_profile_created": patient_profile is not None,
+            "attendee_phone_captured": attendee_phone is not None,
+            "attendee_location_captured": attendee_location is not None
         }
     
     def _handle_consultation_cancelled(self, booking_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -257,3 +278,128 @@ class ConsultationService:
             "created_at": consultation.created_at.isoformat(),
             "updated_at": consultation.updated_at.isoformat()
         }
+    
+    def _extract_phone_from_responses(self, booking_data: Dict[str, Any]) -> Optional[str]:
+        """Extract phone number from Cal.com responses."""
+        responses = booking_data.get("responses", {})
+        
+        # Look for common phone number field names
+        phone_fields = ["phone", "phone_number", "phoneNumber", "mobile", "telephone"]
+        
+        for field in phone_fields:
+            if field in responses:
+                phone = responses[field]
+                if phone and isinstance(phone, str):
+                    # Basic phone number validation/cleaning
+                    cleaned_phone = phone.strip()
+                    if cleaned_phone:
+                        return cleaned_phone
+        
+        return None
+    
+    def _extract_location_from_responses(self, booking_data: Dict[str, Any]) -> Optional[str]:
+        """Extract location from Cal.com responses."""
+        responses = booking_data.get("responses", {})
+        
+        # Look for common location field names
+        location_fields = ["location", "city", "country", "address", "where_are_you_from"]
+        
+        for field in location_fields:
+            if field in responses:
+                location = responses[field]
+                if location and isinstance(location, str):
+                    cleaned_location = location.strip()
+                    if cleaned_location:
+                        return cleaned_location
+        
+        return None
+    
+    def _create_or_find_user_and_patient(
+        self, 
+        attendee_name: str, 
+        attendee_email: str, 
+        attendee_phone: Optional[str] = None,
+        attendee_location: Optional[str] = None,
+        cal_booking_id: Optional[str] = None
+    ) -> tuple[Optional[User], Optional[PatientProfile]]:
+        """
+        Create or find user and patient profile for booking.
+        
+        Returns:
+            Tuple of (user, patient_profile)
+        """
+        if not attendee_email:
+            print(f"⚠️ No email provided for attendee: {attendee_name}")
+            return None, None
+        
+        # Determine phone number to use for user lookup/creation
+        user_phone = attendee_phone or attendee_email  # Fallback to email if no phone
+        
+        # Try to find existing user by phone number first, then by email
+        user = self.user_repository.get_by_phone_number(user_phone)
+        
+        # If not found by phone and we have a phone number, try finding by email
+        if not user and attendee_phone:
+            user = self.user_repository.get_by_phone_number(attendee_email)
+        
+        if not user:
+            # Create new user
+            try:
+                user = self.user_repository.create(
+                    phone_number=user_phone,
+                    name=attendee_name
+                )
+                print(f"✅ Created new user: {user.id} ({user_phone})")
+            except Exception as e:
+                print(f"❌ Failed to create user: {e}")
+                return None, None
+        
+        # Try to find existing patient profile by email or user_id
+        patient_profile = self._find_patient_by_email(attendee_email)
+        
+        if not patient_profile:
+            # Try to find by user_id
+            patient_profile = self._find_patient_by_user_id(user.id)
+        
+        if not patient_profile and attendee_phone:
+            # Try to find by phone number
+            patient_profile = self._find_patient_by_phone(attendee_phone)
+        
+        if not patient_profile:
+            # Create new patient profile
+            try:
+                patient_profile = self.patient_profile_repository.create(
+                    user_id=user.id,
+                    name=attendee_name,
+                    phone=attendee_phone or attendee_email,  # Use phone if available, otherwise email
+                    email=attendee_email,
+                    location=attendee_location,
+                    cal_booking_id=cal_booking_id
+                )
+                print(f"✅ Created new patient profile: {patient_profile.id} ({attendee_email})")
+            except Exception as e:
+                print(f"❌ Failed to create patient profile: {e}")
+                return user, None
+        else:
+            # Update existing patient profile with Cal booking ID if not already set
+            if not patient_profile.cal_booking_id and cal_booking_id:
+                try:
+                    patient_profile.cal_booking_id = cal_booking_id
+                    self.db.commit()
+                    print(f"✅ Updated patient profile {patient_profile.id} with Cal booking ID: {cal_booking_id}")
+                except Exception as e:
+                    print(f"❌ Failed to update patient profile with Cal booking ID: {e}")
+        
+        return user, patient_profile
+    
+    def _find_patient_by_user_id(self, user_id: uuid.UUID) -> Optional[PatientProfile]:
+        """Find patient profile by user ID."""
+        return self.db.query(PatientProfile).filter(
+            PatientProfile.user_id == user_id
+        ).first()
+    
+    def _find_patient_by_phone(self, phone: str) -> Optional[PatientProfile]:
+        """Find patient profile by phone number."""
+        return self.db.query(PatientProfile).filter(
+            PatientProfile.phone == phone
+        ).first()

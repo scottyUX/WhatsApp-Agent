@@ -33,6 +33,7 @@ class PatientProfile(Base, IdMixin):
     location: Mapped[str] = mapped_column(nullable=True)
     age: Mapped[Optional[int]] = mapped_column(nullable=True)
     gender: Mapped[Optional[Gender]] = mapped_column(nullable=True)
+    cal_booking_id: Mapped[Optional[str]] = mapped_column(nullable=True)  # Store Cal.com booking ID
     clinic_offer_ids: Mapped[list[uuid.UUID]] = mapped_column(
         ARRAY(UUID(as_uuid=True)),
         nullable=False,

@@ -21,6 +21,7 @@ class PatientProfileRepository:
         age: Optional[int] = None,
         gender: Optional[Gender] = None,
         clinic_offer_ids: Optional[List[Union[str, uuid.UUID]]] = None,
+        cal_booking_id: Optional[str] = None,
     ) -> PatientProfile:
         """Create a patient profile record."""
         if isinstance(user_id, str):
@@ -39,6 +40,7 @@ class PatientProfileRepository:
             age=age,
             gender=gender,
             clinic_offer_ids=offers or [],
+            cal_booking_id=cal_booking_id,
         )
         self.db.add(patient_profile)
         self.db.commit()

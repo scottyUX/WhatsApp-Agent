@@ -22,7 +22,7 @@ class PatientImageService:
         self,
         repository: PatientImageSubmissionRepository,
         profile_repository: PatientProfileRepository,
-        storage_service: SupabaseStorageService,
+        storage_service: Optional[SupabaseStorageService] = None,
     ) -> None:
         self.repository = repository
         self.profile_repository = profile_repository
@@ -45,6 +45,10 @@ class PatientImageService:
         analysis: Optional[Dict[str, Any]] = None,
     ) -> PatientImageSubmission:
         self._validate_upload_count(uploads)
+        if self.storage_service is None:
+            raise RuntimeError(
+                "Supabase storage is not configured. Image uploads are unavailable."
+            )
         try:
             profile_uuid = (
                 patient_profile_id
