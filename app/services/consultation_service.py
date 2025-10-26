@@ -298,22 +298,28 @@ class ConsultationService:
         if not consultation:
             return None
         
+        # Calculate end_time from start_time + duration if not set
+        end_time = consultation.end_time
+        if not end_time and consultation.start_time and consultation.duration:
+            from datetime import timedelta
+            end_time = consultation.start_time + timedelta(minutes=consultation.duration)
+        
         return {
             "id": str(consultation.id),
-            "cal_booking_id": consultation.cal_booking_id,
-            "title": consultation.title,
-            "description": consultation.description,
+            "cal_booking_id": cal_booking_id,  # Use the searched ID
+            "title": consultation.topic,  # Use topic as title
+            "description": consultation.agenda,  # Use agenda as description
             "start_time": consultation.start_time.isoformat() if consultation.start_time else None,
-            "end_time": consultation.end_time.isoformat() if consultation.end_time else None,
+            "end_time": end_time.isoformat() if end_time else None,
             "attendee_name": consultation.attendee_name,
             "attendee_email": consultation.attendee_email,
-            "attendee_timezone": consultation.attendee_timezone,
+            "attendee_timezone": consultation.timezone,
             "status": consultation.status,
             "patient_profile_id": str(consultation.patient_profile_id) if consultation.patient_profile_id else None,
             "provider_id": str(consultation.provider_id) if consultation.provider_id else None,
             "procedure_id": str(consultation.procedure_id) if consultation.procedure_id else None,
-            "created_at": consultation.created_at.isoformat(),
-            "updated_at": consultation.updated_at.isoformat()
+            "created_at": consultation.created_at.isoformat() if consultation.created_at else None,
+            "updated_at": consultation.updated_at.isoformat() if consultation.updated_at else None
         }
     
     def _extract_phone_from_responses(self, booking_data: Dict[str, Any]) -> Optional[str]:
