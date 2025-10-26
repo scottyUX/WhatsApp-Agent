@@ -67,7 +67,7 @@ async def get_consultation_by_email(
     Get most recent consultation by attendee email.
     
     Args:
-        email: The attendee email address
+        email: The attendee email address (will be URL-decoded)
         
     Returns:
         Consultation details
@@ -75,16 +75,22 @@ async def get_consultation_by_email(
     try:
         from app.database.entities import Consultation
         from datetime import datetime
+        from urllib.parse import unquote
+        
+        # Decode URL-encoded email (e.g., %40 -> @)
+        decoded_email = unquote(email)
+        
+        print(f"🔍 Looking up consultation for email: {decoded_email} (original: {email})")
         
         # Find the most recent consultation for this email
         consultations = db.query(Consultation).filter(
-            Consultation.attendee_email == email
+            Consultation.attendee_email == decoded_email
         ).order_by(Consultation.created_at.desc()).all()
         
         if not consultations:
             raise HTTPException(
                 status_code=404,
-                detail=f"No consultation found for email: {email}"
+                detail=f"No consultation found for email: {decoded_email}"
             )
         
         consultation = consultations[0]
@@ -103,7 +109,7 @@ async def get_consultation_by_email(
             "start_time": consultation.start_time.isoformat() if consultation.start_time else None,
             "end_time": end_time.isoformat() if end_time else None,
             "attendee_name": getattr(consultation, 'attendee_name', None) or "Unknown",
-            "attendee_email": getattr(consultation, 'attendee_email', None) or email,
+            "attendee_email": getattr(consultation, 'attendee_email', None) or decoded_email,
             "host_name": getattr(consultation, 'host_name', None) or "Istanbul Medic",
             "host_email": getattr(consultation, 'host_email', None) or "doctor@istanbulmedic.com",
             "attendee_phone": getattr(consultation, 'attendee_phone', None) or None,
