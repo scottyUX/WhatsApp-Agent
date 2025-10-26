@@ -304,23 +304,22 @@ class ConsultationService:
             from datetime import timedelta
             end_time = consultation.start_time + timedelta(minutes=consultation.duration)
         
+        # Safely handle potential NULL values in the database
         return {
             "id": str(consultation.id),
             "cal_booking_id": cal_booking_id,  # Use the searched ID
-            "title": consultation.topic or "Consultation",  # Use topic as title
-            "description": consultation.agenda,  # Use agenda as description
+            "title": (consultation.topic if consultation.topic else "Consultation"),  # Use topic as title
+            "description": (consultation.agenda if consultation.agenda else None),  # Use agenda as description
             "start_time": consultation.start_time.isoformat() if consultation.start_time else None,
             "end_time": end_time.isoformat() if end_time else None,
-            "attendee_name": consultation.attendee_name or "Unknown",
-            "attendee_email": consultation.attendee_email or "unknown@example.com",
-            "host_name": consultation.host_name or "Istanbul Medic",
-            "host_email": consultation.host_email or "doctor@istanbulmedic.com",
-            "attendee_phone": consultation.attendee_phone or None,
-            "attendee_timezone": consultation.timezone,
-            "status": consultation.status,
+            "attendee_name": getattr(consultation, 'attendee_name', None) or "Unknown",
+            "attendee_email": getattr(consultation, 'attendee_email', None) or "unknown@example.com",
+            "host_name": getattr(consultation, 'host_name', None) or "Istanbul Medic",
+            "host_email": getattr(consultation, 'host_email', None) or "doctor@istanbulmedic.com",
+            "attendee_phone": getattr(consultation, 'attendee_phone', None) or None,
+            "attendee_timezone": getattr(consultation, 'timezone', None),
+            "status": getattr(consultation, 'status', 'unknown'),
             "patient_profile_id": str(consultation.patient_profile_id) if consultation.patient_profile_id else None,
-            "provider_id": str(consultation.provider_id) if consultation.provider_id else None,
-            "procedure_id": str(consultation.procedure_id) if consultation.procedure_id else None,
             "created_at": consultation.created_at.isoformat() if consultation.created_at else None,
             "updated_at": consultation.updated_at.isoformat() if consultation.updated_at else None
         }
