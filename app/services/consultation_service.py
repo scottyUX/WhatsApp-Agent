@@ -38,8 +38,12 @@ class ConsultationService:
             Dictionary with processing result
         """
         try:
-            event_type = webhook_payload.get("type", "")
-            booking_data = webhook_payload.get("data", {})
+            # Handle real Cal.com webhook structure
+            event_type = webhook_payload.get("triggerEvent", webhook_payload.get("type", ""))
+            booking_data = webhook_payload.get("payload", webhook_payload.get("data", {}))
+            
+            print(f"🔍 DEBUG: Event type: '{event_type}'")
+            print(f"🔍 DEBUG: Booking data keys: {list(booking_data.keys())}")
             
             if event_type == "BOOKING_CREATED":
                 return self._handle_consultation_created(booking_data, webhook_payload)
@@ -102,32 +106,31 @@ class ConsultationService:
             if end_time_str:
                 end_time = datetime.fromisoformat(end_time_str.replace('Z', '+00:00'))
             
-            # Extract attendee information from actual Cal.com payload
-            # Cal.com sends both template placeholders AND actual data
-            attendee_name = booking_data.get("attendeeName", "Unknown")
-            attendee_email = booking_data.get("email", "")
+            # Extract attendee information from real Cal.com payload structure
+            attendees = booking_data.get("attendees", [])
+            attendee_name = "Unknown"
+            attendee_email = ""
             attendee_timezone = None
             attendee_phone = None
             attendee_location = None
             
             print(f"🔍 DEBUG: Booking data keys: {list(booking_data.keys())}")
-            print(f"🔍 DEBUG: Direct attendeeName: '{attendee_name}'")
-            print(f"🔍 DEBUG: Direct email: '{attendee_email}'")
+            print(f"🔍 DEBUG: Attendees: {attendees}")
             
-            # Also try to extract from attendees array as fallback
-            attendees = booking_data.get("attendees", [])
-            if attendees and (not attendee_name or attendee_name == "Unknown"):
-                attendee = attendees[0]
-                attendee_name = attendee.get("name", attendee_name)
-                attendee_email = attendee.get("email", attendee_email)
+            if attendees:
+                attendee = attendees[0]  # Use first attendee
+                attendee_name = attendee.get("name", "Unknown")
+                attendee_email = attendee.get("email", "")
                 attendee_timezone = attendee.get("timeZone")
-                print(f"🔍 DEBUG: Fallback from attendees array")
+                
+                print(f"🔍 DEBUG: Extracted name: '{attendee_name}'")
+                print(f"🔍 DEBUG: Extracted email: '{attendee_email}'")
             
-            # Extract phone number from responses if available
+            # Extract phone number from responses (real Cal.com structure)
             attendee_phone = self._extract_phone_from_responses(booking_data)
             print(f"🔍 DEBUG: Extracted phone: '{attendee_phone}'")
             
-            # Extract location from responses if available
+            # Extract location from responses
             attendee_location = self._extract_location_from_responses(booking_data)
             print(f"🔍 DEBUG: Extracted location: '{attendee_location}'")
             
@@ -317,14 +320,33 @@ class ConsultationService:
         """Extract phone number from Cal.com responses."""
         responses = booking_data.get("responses", {})
         
-        # Look for common phone number field names
-        phone_fields = ["phone", "phone_number", "phoneNumber", "mobile", "telephone"]
+        print(f"🔍 DEBUG: Responses: {responses}")
+        
+        # Look for phone number in various response fields
+        phone_fields = [
+            "attendeePhoneNumber",
+            "aiAgentCallPhoneNumber", 
+            "phone",
+            "phone_number",
+            "phoneNumber",
+            "mobile",
+            "telephone"
+        ]
         
         for field in phone_fields:
             if field in responses:
-                phone = responses[field]
+                phone_data = responses[field]
+                print(f"🔍 DEBUG: Found phone field '{field}': {phone_data}")
+                
+                # Handle different response structures
+                if isinstance(phone_data, dict):
+                    phone = phone_data.get("value", "")
+                elif isinstance(phone_data, str):
+                    phone = phone_data
+                else:
+                    continue
+                
                 if phone and isinstance(phone, str):
-                    # Basic phone number validation/cleaning
                     cleaned_phone = phone.strip()
                     if cleaned_phone:
                         return self._normalize_phone_number(cleaned_phone)
