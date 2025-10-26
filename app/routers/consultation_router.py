@@ -56,6 +56,76 @@ async def get_todays_consultations(
         raise ErrorUtils.toHTTPException(exception)
 
 
+@router.get("/by-email/{email}")
+@limiter.limit(RateLimitConfig.CHAT)
+async def get_consultation_by_email(
+    request: Request,
+    email: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get most recent consultation by attendee email.
+    
+    Args:
+        email: The attendee email address
+        
+    Returns:
+        Consultation details
+    """
+    try:
+        from app.database.entities import Consultation
+        from datetime import datetime
+        
+        # Find the most recent consultation for this email
+        consultations = db.query(Consultation).filter(
+            Consultation.attendee_email == email
+        ).order_by(Consultation.created_at.desc()).all()
+        
+        if not consultations:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No consultation found for email: {email}"
+            )
+        
+        consultation = consultations[0]
+        
+        # Calculate end_time from start_time + duration if not set
+        end_time = consultation.end_time
+        if not end_time and consultation.start_time and consultation.duration:
+            from datetime import timedelta
+            end_time = consultation.start_time + timedelta(minutes=consultation.duration)
+        
+        consultation_data = {
+            "id": str(consultation.id),
+            "cal_booking_id": consultation.zoom_meeting_id,
+            "title": (consultation.topic if consultation.topic else "Consultation"),
+            "description": (consultation.agenda if consultation.agenda else None),
+            "start_time": consultation.start_time.isoformat() if consultation.start_time else None,
+            "end_time": end_time.isoformat() if end_time else None,
+            "attendee_name": getattr(consultation, 'attendee_name', None) or "Unknown",
+            "attendee_email": getattr(consultation, 'attendee_email', None) or email,
+            "host_name": getattr(consultation, 'host_name', None) or "Istanbul Medic",
+            "host_email": getattr(consultation, 'host_email', None) or "doctor@istanbulmedic.com",
+            "attendee_phone": getattr(consultation, 'attendee_phone', None) or None,
+            "attendee_timezone": getattr(consultation, 'timezone', None),
+            "status": getattr(consultation, 'status', 'unknown'),
+            "patient_profile_id": str(consultation.patient_profile_id) if consultation.patient_profile_id else None,
+            "created_at": consultation.created_at.isoformat() if consultation.created_at else None,
+            "updated_at": consultation.updated_at.isoformat() if consultation.updated_at else None
+        }
+        
+        return {
+            "success": True,
+            "data": consultation_data
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as exception:
+        traceback.print_exc()
+        raise ErrorUtils.toHTTPException(exception)
+
+
 @router.get("/{cal_booking_id}")
 @limiter.limit(RateLimitConfig.CHAT)
 async def get_consultation_by_cal_id(
