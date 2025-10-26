@@ -307,12 +307,15 @@ class ConsultationService:
         return {
             "id": str(consultation.id),
             "cal_booking_id": cal_booking_id,  # Use the searched ID
-            "title": consultation.topic,  # Use topic as title
+            "title": consultation.topic or "Consultation",  # Use topic as title
             "description": consultation.agenda,  # Use agenda as description
             "start_time": consultation.start_time.isoformat() if consultation.start_time else None,
             "end_time": end_time.isoformat() if end_time else None,
-            "attendee_name": consultation.attendee_name,
-            "attendee_email": consultation.attendee_email,
+            "attendee_name": consultation.attendee_name or "Unknown",
+            "attendee_email": consultation.attendee_email or "unknown@example.com",
+            "host_name": consultation.host_name or "Istanbul Medic",
+            "host_email": consultation.host_email or "doctor@istanbulmedic.com",
+            "attendee_phone": consultation.attendee_phone or None,
             "attendee_timezone": consultation.timezone,
             "status": consultation.status,
             "patient_profile_id": str(consultation.patient_profile_id) if consultation.patient_profile_id else None,

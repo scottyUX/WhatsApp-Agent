@@ -100,13 +100,14 @@ async def cal_webhook(request: Request, message_service: MessageServiceDep, db: 
         
         # Generate confirmation message for BOOKING_CREATED events
         if result.get("action") == "created":
-            booking_data = payload.get("data", {})
-            
-            # Extract actual data (not template placeholders)
+            # Use the booking_data extracted earlier
             booking_id = booking_data.get("uid", booking_data.get("id", "Unknown"))
             event_title = booking_data.get("title", "Consultation")
             start_time = booking_data.get("startTime", "")
-            attendee_name = booking_data.get("attendeeName", "Guest")
+            
+            # Extract attendee name from attendees array
+            attendees = booking_data.get("attendees", [])
+            attendee_name = attendees[0].get("name", "Guest") if attendees else "Guest"
             
             # Format the confirmation message
             confirmation_message = f"""
