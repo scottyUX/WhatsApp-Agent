@@ -87,6 +87,10 @@ async def cal_webhook(request: Request, message_service: MessageServiceDep, db: 
         print(f"📅 CAL.COM WEBHOOK: Received booking notification")
         print(f"📅 CAL.COM WEBHOOK: Payload: {json.dumps(payload, indent=2)}")
         
+        # Debug: Check payload structure
+        print(f"📅 CAL.COM WEBHOOK: Event type: {payload.get('type', 'UNKNOWN')}")
+        print(f"📅 CAL.COM WEBHOOK: Data keys: {list(payload.get('data', {}).keys())}")
+        
         # Process webhook using consultation service
         consultation_service = ConsultationService(db)
         result = consultation_service.process_cal_webhook(payload)
@@ -96,12 +100,12 @@ async def cal_webhook(request: Request, message_service: MessageServiceDep, db: 
         # Generate confirmation message for BOOKING_CREATED events
         if result.get("action") == "created":
             booking_data = payload.get("data", {})
-            attendee = booking_data.get("attendees", [{}])[0] if booking_data.get("attendees") else {}
             
-            booking_id = booking_data.get("id", "Unknown")
+            # Extract actual data (not template placeholders)
+            booking_id = booking_data.get("uid", booking_data.get("id", "Unknown"))
             event_title = booking_data.get("title", "Consultation")
             start_time = booking_data.get("startTime", "")
-            attendee_name = attendee.get("name", "Guest")
+            attendee_name = booking_data.get("attendeeName", "Guest")
             
             # Format the confirmation message
             confirmation_message = f"""

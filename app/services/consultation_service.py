@@ -102,25 +102,34 @@ class ConsultationService:
             if end_time_str:
                 end_time = datetime.fromisoformat(end_time_str.replace('Z', '+00:00'))
             
-            # Extract attendee information
-            attendees = booking_data.get("attendees", [])
-            attendee_name = "Unknown"
-            attendee_email = ""
+            # Extract attendee information from actual Cal.com payload
+            # Cal.com sends both template placeholders AND actual data
+            attendee_name = booking_data.get("attendeeName", "Unknown")
+            attendee_email = booking_data.get("email", "")
             attendee_timezone = None
             attendee_phone = None
             attendee_location = None
             
-            if attendees:
-                attendee = attendees[0]  # Use first attendee
-                attendee_name = attendee.get("name", "Unknown")
-                attendee_email = attendee.get("email", "")
+            print(f"🔍 DEBUG: Booking data keys: {list(booking_data.keys())}")
+            print(f"🔍 DEBUG: Direct attendeeName: '{attendee_name}'")
+            print(f"🔍 DEBUG: Direct email: '{attendee_email}'")
+            
+            # Also try to extract from attendees array as fallback
+            attendees = booking_data.get("attendees", [])
+            if attendees and (not attendee_name or attendee_name == "Unknown"):
+                attendee = attendees[0]
+                attendee_name = attendee.get("name", attendee_name)
+                attendee_email = attendee.get("email", attendee_email)
                 attendee_timezone = attendee.get("timeZone")
-                
-                # Extract phone number from responses if available
-                attendee_phone = self._extract_phone_from_responses(booking_data)
-                
-                # Extract location from responses if available
-                attendee_location = self._extract_location_from_responses(booking_data)
+                print(f"🔍 DEBUG: Fallback from attendees array")
+            
+            # Extract phone number from responses if available
+            attendee_phone = self._extract_phone_from_responses(booking_data)
+            print(f"🔍 DEBUG: Extracted phone: '{attendee_phone}'")
+            
+            # Extract location from responses if available
+            attendee_location = self._extract_location_from_responses(booking_data)
+            print(f"🔍 DEBUG: Extracted location: '{attendee_location}'")
             
             # Create or find user and patient profile (with transaction handling)
             user, patient_profile = self._create_or_find_user_and_patient(
