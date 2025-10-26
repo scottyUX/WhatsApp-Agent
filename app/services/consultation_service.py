@@ -71,7 +71,7 @@ class ConsultationService:
         - PatientProfile record (with attendee details)  
         - Consultation record (linked to patient profile)
         """
-        cal_booking_id = booking_data.get("id")
+        cal_booking_id = booking_data.get("uid", booking_data.get("id"))
         if not cal_booking_id:
             raise ValueError("Missing booking ID in webhook payload")
         
