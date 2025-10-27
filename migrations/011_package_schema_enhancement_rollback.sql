@@ -25,4 +25,9 @@ ALTER TABLE packages DROP COLUMN IF EXISTS post_operation_medication_included;
 ALTER TABLE packages DROP COLUMN IF EXISTS prp_sessions_included;
 ALTER TABLE packages DROP COLUMN IF EXISTS sedation_included;
 
+-- Recreate deprecated columns
+ALTER TABLE packages ADD COLUMN IF NOT EXISTS grafts TEXT;
+ALTER TABLE packages ADD COLUMN IF NOT EXISTS airport_lounge_access_notes TEXT;
+ALTER TABLE packages ADD COLUMN IF NOT EXISTS aftercare_kit_duration TEXT;
+
 COMMIT;

@@ -47,7 +47,7 @@ class PackageRepository:
         name: str,
         description: Optional[str] = None,
         price: Optional[Decimal] = None,
-        currency: str = "USD",
+        currency: str = "EUR",
         is_active: bool = True,
         clinic_id: Optional[uuid.UUID] = None,
         grafts_count: Optional[str] = None,
