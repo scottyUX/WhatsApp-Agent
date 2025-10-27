@@ -16,6 +16,7 @@ from app.routers import (
     image_analysis_router,
     clinic_router,
     package_router,
+    offer_router,
 )
 from app.config.rate_limits import limiter, custom_rate_limit_handler
 from slowapi.errors import RateLimitExceeded
@@ -82,6 +83,7 @@ app.include_router(patient_image_router.router)
 app.include_router(image_analysis_router.router)
 app.include_router(clinic_router.router)
 app.include_router(package_router.router)
+app.include_router(offer_router.router)
 app.include_router(healthcheck.router)
 
 # Only include test router in debug mode

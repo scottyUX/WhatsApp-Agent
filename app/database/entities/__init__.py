@@ -12,3 +12,4 @@ from .media import Media
 from .patient_image_submission import PatientImageSubmission
 from .clinic import Clinic
 from .package import Package
+from .offer import Offer
