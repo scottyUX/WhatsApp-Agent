@@ -4,8 +4,8 @@ from typing import Optional
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, text, String, Numeric
-from sqlalchemy.dialects.postgresql import ARRAY, UUID, DECIMAL, JSONB, TIMESTAMPTZ
+from sqlalchemy import ForeignKey, text, String, Numeric, DateTime
+from sqlalchemy.dialects.postgresql import ARRAY, UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship, MappedAsDataclass
 
 from .base import Base
@@ -34,7 +34,7 @@ class Offer(Base, MappedAsDataclass):
 
     # Pricing snapshot
     total_price: Mapped[Optional[Decimal]] = mapped_column(
-        DECIMAL(12, 2),
+        Numeric(12, 2),
         nullable=True,
     )
     currency: Mapped[str] = mapped_column(
@@ -44,7 +44,7 @@ class Offer(Base, MappedAsDataclass):
         default="USD",
     )
     deposit_amount: Mapped[Optional[Decimal]] = mapped_column(
-        DECIMAL(12, 2),
+        Numeric(12, 2),
         nullable=True,
     )
 
@@ -83,13 +83,13 @@ class Offer(Base, MappedAsDataclass):
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMPTZ,
+        DateTime(timezone=True),
         nullable=False,
         server_default=text("NOW()"),
         default=datetime.now,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMPTZ,
+        DateTime(timezone=True),
         nullable=False,
         server_default=text("NOW()"),
         default=datetime.now,
