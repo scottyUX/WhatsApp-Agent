@@ -99,7 +99,6 @@ class Offer(Base, MappedAsDataclass):
     patient_profile: Mapped[Optional["PatientProfile"]] = relationship(
         "PatientProfile",
         back_populates="offers",
-        init=False,
     )
 
     def __repr__(self):
