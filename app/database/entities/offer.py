@@ -18,6 +18,14 @@ if typing.TYPE_CHECKING:
 class Offer(Base, MappedAsDataclass):
     __tablename__ = "offers"
 
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()")  # requires pgcrypto extension
+    )
+
     # Core relationships
     patient_profile_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("patient_profiles.id", ondelete="CASCADE"),
