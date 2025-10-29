@@ -16,6 +16,7 @@ if typing.TYPE_CHECKING:
     from .consultation import Consultation
     from .consultant_note import ConsultantNote
     from .patient_image_submission import PatientImageSubmission
+    from .offer import Offer
 
 
 class PatientProfile(Base, IdMixin):
@@ -65,6 +66,11 @@ class PatientProfile(Base, IdMixin):
     )
     image_submissions: Mapped[list["PatientImageSubmission"]] = relationship(
         "PatientImageSubmission",
+        back_populates="patient_profile",
+        init=False
+    )
+    offers: Mapped[list["Offer"]] = relationship(
+        "Offer",
         back_populates="patient_profile",
         init=False
     )
