@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple, Union
 from sqlalchemy import desc
 from sqlalchemy.orm import Session, selectinload
 
-from app.database.entities import Offer
+from app.database.entities import Offer, PatientProfile
 
 
 class OfferRepository:
@@ -76,6 +76,8 @@ class OfferRepository:
         status: Optional[str] = None,
         clinic_id: Optional[Union[str, uuid.UUID]] = None,
         package_id: Optional[Union[str, uuid.UUID]] = None,
+        offer_id: Optional[Union[str, uuid.UUID]] = None,
+        patient_name: Optional[str] = None,
     ) -> Tuple[List[Offer], int]:
         """Return paginated offers with optional filters."""
         if page < 1:
@@ -89,6 +91,8 @@ class OfferRepository:
             clinic_id = uuid.UUID(clinic_id)
         if isinstance(package_id, str):
             package_id = uuid.UUID(package_id)
+        if isinstance(offer_id, str):
+            offer_id = uuid.UUID(offer_id)
 
         query = self.db.query(Offer).options(selectinload(Offer.patient_profile))
         if patient_profile_id:
@@ -99,6 +103,16 @@ class OfferRepository:
             query = query.filter(Offer.clinic_ids.contains([clinic_id]))
         if package_id:
             query = query.filter(Offer.package_ids.contains([package_id]))
+        if offer_id:
+            query = query.filter(Offer.id == offer_id)
+        if patient_name:
+            trimmed_name = patient_name.strip()
+            if trimmed_name:
+                ilike_pattern = f"%{trimmed_name}%"
+                query = (
+                    query.join(PatientProfile, Offer.patient_profile)
+                    .filter(PatientProfile.name.ilike(ilike_pattern))
+                )
 
         total = query.count()
         offers = (

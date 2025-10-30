@@ -279,6 +279,12 @@ async def get_all_offers(
     request: Request,
     page: int = 1,
     limit: int = 50,
+    status: Optional[str] = None,
+    package_id: Optional[str] = None,
+    clinic_id: Optional[str] = None,
+    offer_id: Optional[str] = None,
+    patient_profile_id: Optional[str] = None,
+    patient_name: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -287,6 +293,12 @@ async def get_all_offers(
     Query params:
         page: Page number (1-indexed)
         limit: Number of offers per page (max 100)
+        status: Filter by offer status
+        package_id: Filter by package UUID
+        clinic_id: Filter by clinic UUID
+        offer_id/id: Filter by offer UUID
+        patient_profile_id: Filter by patient profile UUID
+        patient_name/patient: Case-insensitive partial patient name match
 
     Returns:
         List of offers
@@ -303,10 +315,36 @@ async def get_all_offers(
                 detail="Query parameter 'page' must be at least 1.",
             )
 
+        normalized_status = None
+        if status:
+            normalized_status = status.lower()
+            if normalized_status not in VALID_STATUSES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid status supplied. Must be one of {sorted(VALID_STATUSES)}.",
+                )
+
+        offer_id_param = offer_id or request.query_params.get("id")
+        patient_name_param = patient_name or request.query_params.get("patient")
+
+        normalized_offer_id = _normalize_uuid(offer_id_param, "offer_id") if offer_id_param else None
+        normalized_patient_profile_id = (
+            _normalize_uuid(patient_profile_id, "patient_profile_id") if patient_profile_id else None
+        )
+        normalized_clinic_id = _normalize_uuid(clinic_id, "clinic_id") if clinic_id else None
+        normalized_package_id = _normalize_uuid(package_id, "package_id") if package_id else None
+        cleaned_patient_name = patient_name_param.strip() if patient_name_param else None
+
         offer_repository = OfferRepository(db)
         offers, total = offer_repository.list_paginated(
             page=page,
             limit=limit,
+            status=normalized_status,
+            clinic_id=normalized_clinic_id,
+            package_id=normalized_package_id,
+            offer_id=normalized_offer_id,
+            patient_profile_id=normalized_patient_profile_id,
+            patient_name=cleaned_patient_name,
         )
         
         serialized_offers = [_serialize_offer(offer) for offer in offers]
