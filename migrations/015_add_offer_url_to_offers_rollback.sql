@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE offers
+    DROP COLUMN IF EXISTS offer_url;
+
+COMMIT;

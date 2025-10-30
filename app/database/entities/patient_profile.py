@@ -2,8 +2,7 @@ import typing
 import uuid
 from typing import Optional
 
-from sqlalchemy import ForeignKey, UniqueConstraint, text
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy import ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.enums import Gender
@@ -16,6 +15,7 @@ if typing.TYPE_CHECKING:
     from .consultation import Consultation
     from .consultant_note import ConsultantNote
     from .patient_image_submission import PatientImageSubmission
+    from .offer import Offer
 
 
 class PatientProfile(Base, IdMixin):
@@ -33,12 +33,7 @@ class PatientProfile(Base, IdMixin):
     location: Mapped[str] = mapped_column(nullable=True)
     age: Mapped[Optional[int]] = mapped_column(nullable=True)
     gender: Mapped[Optional[Gender]] = mapped_column(nullable=True)
-    clinic_offer_ids: Mapped[list[uuid.UUID]] = mapped_column(
-        ARRAY(UUID(as_uuid=True)),
-        nullable=False,
-        server_default=text("'{}'::uuid[]"),
-        default=list,
-    )
+    # cal_booking_id: Mapped[Optional[str]] = mapped_column(nullable=True)  # TODO: Add after migration
 
     # Relationships
     conversation_states: Mapped[list["ConversationState"]] = relationship(
@@ -64,6 +59,11 @@ class PatientProfile(Base, IdMixin):
     )
     image_submissions: Mapped[list["PatientImageSubmission"]] = relationship(
         "PatientImageSubmission",
+        back_populates="patient_profile",
+        init=False
+    )
+    offers: Mapped[list["Offer"]] = relationship(
+        "Offer",
         back_populates="patient_profile",
         init=False
     )

@@ -52,16 +52,32 @@ def _serialize_package(package) -> PackageResponse:
 async def list_packages(
     request: Request,
     include_inactive: bool = False,
+    page: int = 1,
+    page_size: int = 50,
     db: Session = Depends(get_db),
 ):
     """
     Return all packages. By default only active packages are returned.
     """
     try:
+        page = max(page, 1)
+        page_size = max(1, min(page_size, 100))
+
         repo = PackageRepository(db)
-        packages = repo.list(include_inactive=include_inactive)
+        packages, total = repo.list(
+            include_inactive=include_inactive,
+            page=page,
+            page_size=page_size,
+        )
         payload = [_serialize_package(pkg) for pkg in packages]
-        return PackageListResponse(packages=payload, total=len(payload))
+        page_count = (total + page_size - 1) // page_size if total else 0
+        return PackageListResponse(
+            packages=payload,
+            total=total,
+            page=page,
+            page_size=page_size,
+            pages=page_count,
+        )
     except Exception as exception:  # pragma: no cover - defensive logging
         traceback.print_exc()
         raise ErrorUtils.toHTTPException(exception)

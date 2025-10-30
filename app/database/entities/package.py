@@ -60,7 +60,9 @@ class Package(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
-    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
+    currency: Mapped[str] = mapped_column(
+        String(3), nullable=False, default="EUR", server_default="EUR"
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="true", default=True
     )
@@ -82,26 +84,54 @@ class Package(Base):
     # Treatment Specifics
     grafts_count: Mapped[str | None] = mapped_column(String(20), nullable=True)
     hair_transplantation_method: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    stem_cell_therapy_sessions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    stem_cell_therapy_sessions: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
     # Travel & Accommodation
-    airport_lounge_access_included: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    airport_lounge_access_details: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    breakfast_included: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    airport_lounge_access_included: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    airport_lounge_access_details: Mapped[str | None] = mapped_column(
+        String(32), nullable=True
+    )
+    breakfast_included: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     hotel_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    hotel_nights_included: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    hotel_star_rating: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    private_translator_included: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    vip_transfer_details: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    hotel_nights_included: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    hotel_star_rating: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    private_translator_included: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    vip_transfer_details: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # Aftercare & Follow-ups
-    aftercare_kit_supply_duration: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    laser_sessions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    online_follow_ups_duration: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    oxygen_therapy_sessions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    post_operation_medication_included: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    prp_sessions_included: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    sedation_included: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    aftercare_kit_supply_duration: Mapped[str | None] = mapped_column(
+        String(32), nullable=True
+    )
+    laser_sessions: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    online_follow_ups_duration: Mapped[str | None] = mapped_column(
+        String(32), nullable=True
+    )
+    oxygen_therapy_sessions: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    post_operation_medication_included: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    prp_sessions_included: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    sedation_included: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
 
     # Relationships
     clinics: Mapped[List["Clinic"]] = relationship(

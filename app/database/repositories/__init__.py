@@ -1,3 +1,4 @@
 from .user_repository import UserRepository
 from .message_repository import MessageRepository
 from .patient_image_submission_repository import PatientImageSubmissionRepository
+from .offer_repository import OfferRepository

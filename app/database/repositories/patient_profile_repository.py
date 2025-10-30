@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 from sqlalchemy.orm import Session
 
@@ -20,15 +20,11 @@ class PatientProfileRepository:
         location: Optional[str] = None,
         age: Optional[int] = None,
         gender: Optional[Gender] = None,
-        clinic_offer_ids: Optional[List[Union[str, uuid.UUID]]] = None,
+        # cal_booking_id: Optional[str] = None,  # TODO: Add after migration
     ) -> PatientProfile:
         """Create a patient profile record."""
         if isinstance(user_id, str):
             user_id = uuid.UUID(user_id)
-
-        offers: Optional[List[uuid.UUID]] = None
-        if clinic_offer_ids is not None:
-            offers = [uuid.UUID(str(clinic_id)) for clinic_id in clinic_offer_ids]
 
         patient_profile = PatientProfile(
             user_id=user_id,
@@ -38,7 +34,7 @@ class PatientProfileRepository:
             location=location,
             age=age,
             gender=gender,
-            clinic_offer_ids=offers or [],
+            # cal_booking_id=cal_booking_id,  # TODO: Add after migration
         )
         self.db.add(patient_profile)
         self.db.commit()
@@ -79,23 +75,3 @@ class PatientProfileRepository:
             .filter(PatientProfile.user_id == user_id)
             .first()
         )
-
-    def add_clinic_offers(
-        self,
-        patient_profile: PatientProfile,
-        clinic_ids: List[uuid.UUID],
-    ) -> PatientProfile:
-        """Append clinic offers to the patient profile without duplicating entries."""
-        existing_ids = set(patient_profile.clinic_offer_ids or [])
-        existing_ids.update(clinic_ids)
-        patient_profile.clinic_offer_ids = list(existing_ids)
-        return self.save(patient_profile)
-
-    def set_clinic_offers(
-        self,
-        patient_profile: PatientProfile,
-        clinic_ids: List[uuid.UUID],
-    ) -> PatientProfile:
-        """Replace clinic offers on the patient profile."""
-        patient_profile.clinic_offer_ids = list(clinic_ids)
-        return self.save(patient_profile)

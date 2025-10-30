@@ -284,9 +284,8 @@ CREATE TABLE clinic_packages (
 ALTER TABLE clinics
     ADD COLUMN IF NOT EXISTS has_contract BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS package_ids UUID[] NOT NULL DEFAULT '{}'::uuid[];
-
-ALTER TABLE patient_profiles
-    ADD COLUMN IF NOT EXISTS clinic_offer_ids UUID[] NOT NULL DEFAULT '{}'::uuid[];
+-- Patient offer selections are stored in the `offers` table;
+-- `patient_profiles` no longer mirrors clinic offer IDs.
 ```
 
 ### Messages Table

@@ -19,11 +19,24 @@ class PackageRepository:
         self,
         *,
         include_inactive: bool = False,
-    ) -> List[Package]:
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[List[Package], int]:
+        page = max(1, page)
+        page_size = max(1, min(page_size, 100))
+
         query = self.db.query(Package)
         if not include_inactive:
             query = query.filter(Package.is_active.is_(True))
-        return query.order_by(Package.created_at.desc()).all()
+
+        total = query.count()
+        packages = (
+            query.order_by(Package.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
+        return packages, total
 
     def get_by_id(self, package_id: uuid.UUID) -> Optional[Package]:
         return (
@@ -47,7 +60,7 @@ class PackageRepository:
         name: str,
         description: Optional[str] = None,
         price: Optional[Decimal] = None,
-        currency: str = "USD",
+        currency: str = "EUR",
         is_active: bool = True,
         clinic_id: Optional[uuid.UUID] = None,
         grafts_count: Optional[str] = None,

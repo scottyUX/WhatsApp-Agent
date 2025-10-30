@@ -103,3 +103,12 @@ class PatientImageSubmissionRepository:
         self.db.commit()
         self.db.refresh(submission)
         return submission
+
+    def list_patient_ids_with_images(self) -> List[uuid.UUID]:
+        """Return unique patient profile IDs that have uploaded images."""
+        query = (
+            self.db.query(PatientImageSubmission.patient_profile_id)
+            .distinct()
+            .order_by(PatientImageSubmission.patient_profile_id)
+        )
+        return [row[0] for row in query.all()]
