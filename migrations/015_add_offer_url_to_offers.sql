@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE offers
+    ADD COLUMN IF NOT EXISTS offer_url TEXT;
+
+COMMIT;

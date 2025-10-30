@@ -2,8 +2,7 @@ import typing
 import uuid
 from typing import Optional
 
-from sqlalchemy import ForeignKey, UniqueConstraint, text
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy import ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.enums import Gender
@@ -35,12 +34,6 @@ class PatientProfile(Base, IdMixin):
     age: Mapped[Optional[int]] = mapped_column(nullable=True)
     gender: Mapped[Optional[Gender]] = mapped_column(nullable=True)
     # cal_booking_id: Mapped[Optional[str]] = mapped_column(nullable=True)  # TODO: Add after migration
-    clinic_offer_ids: Mapped[list[uuid.UUID]] = mapped_column(
-        ARRAY(UUID(as_uuid=True)),
-        nullable=False,
-        server_default=text("'{}'::uuid[]"),
-        default=list,
-    )
 
     # Relationships
     conversation_states: Mapped[list["ConversationState"]] = relationship(

@@ -39,6 +39,13 @@ class Offer(Base, MappedAsDataclass):
         server_default=text("'{}'::uuid[]"),
         default=list,
     )
+    # Package selection
+    package_ids: Mapped[list[uuid.UUID]] = mapped_column(
+        ARRAY(UUID(as_uuid=True)),
+        nullable=False,
+        server_default=text("'{}'::uuid[]"),
+        default=list,
+    )
 
     # Pricing snapshot
     total_price: Mapped[Optional[Decimal]] = mapped_column(
@@ -54,6 +61,13 @@ class Offer(Base, MappedAsDataclass):
     deposit_amount: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(12, 2),
         nullable=True,
+    )
+
+    # Offer shareable link
+    offer_url: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+        default=None,
     )
 
     # Payment options
@@ -78,11 +92,11 @@ class Offer(Base, MappedAsDataclass):
     )
 
     # Status history (track all status changes)
-    status_history: Mapped[dict] = mapped_column(
+    status_history: Mapped[list[dict]] = mapped_column(
         JSONB,
         nullable=False,
         server_default=text("'[]'::jsonb"),
-        default=dict,
+        default=list,
     )
 
     # Audit fields
@@ -126,4 +140,3 @@ class Offer(Base, MappedAsDataclass):
         
         self.status_history.append(history_entry)
         self.status = status
-
